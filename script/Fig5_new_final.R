@@ -1,6 +1,8 @@
 #In the final version of the model, we stayed with 10 states without pooling some states together as intra or intergenic states
 #and we also let IR and SNP effect of different states be the same
 
+setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+
 #import necessary packages
 Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "ggpmisc")
 lapply(Packages, library, character.only = TRUE)
@@ -10,7 +12,7 @@ lapply(Packages, library, character.only = TRUE)
 #Every state segment with intersected IR info
 paths_den_table_IR_state_Ler_IR_seg <-
   str_c(
-    "/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/modeling_IR_SNP_all_IR_event/",
+    "./data/Fig5/",
     "den_table_",
     bin_name,
     "_state_10_Ler_IR_intersect"
@@ -19,7 +21,7 @@ paths_den_table_IR_state_Ler_IR_seg <-
 #Every state segment with SNP info (state 8 already modified, 9:8:9 are switched into 9:9:9)
 paths_den_table_IR_state_Ler_IR_ISNP_seg <-
   str_c(
-    "/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/modeling_IR_SNP_all_IR_event/",
+    "./data/Fig5/",
     "den_table_",
     bin_name,
     "_state_10_Ler_IR_ISNP_intersect"
@@ -59,7 +61,7 @@ Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
 
 Ara_genome_bed <-
   read_delim(
-    "/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/Fig4/Ara_genome_bed",
+    "./data/Fig4/Ara_genome_bed",
     delim = "\t",
     col_names = c("Chr", "str", "end")
   )
@@ -90,18 +92,13 @@ den_table_list <-
   bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
   split(.$size_l)
 
-path_den_table <- str_c("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/",
-                        "den_table_",
-                        bin_name,
-                        "_bed")
 
-pwalk(list(den_table_list, path_den_table), write_delim, delim = "\t", col_names = FALSE)
 
 
 #read CO file and calculate recombination rate
 paths_den_table_RCO <-
   str_c(
-    "/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/Fig4/",
+    "./data/Fig4/",
     "den_table_",
     bin_name,
     "_RCO_raw_bed"
@@ -139,7 +136,7 @@ cross_combination <- str_c(c("Col_Bur", "Col_Ws", "Col_Clc", "Col_Ct", "Col_Ler"
 
 paths_den_table_ICO_combined <-
   str_c(
-    "/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/Fig4/",
+    "./data/Fig4/",
     "den_table_",
     bin_name,
     "_ICO_raw_bed"

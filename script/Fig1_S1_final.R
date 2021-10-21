@@ -76,7 +76,7 @@ write_delim)
 
 #TE (TAIR10_GFF3_genes_transposons.gff was downloaded from TAIR10 website, https://www.arabidopsis.org/download/index-auto.jsp?dir=%2Fdownload_files%2FGenes%2FTAIR10_genome_release%2FTAIR10_gff3)
 #cat -n TAIR10_GFF3_genes_transposons.gff | awk '{if ($1 >= 590265) print$0}' | grep "transposable_element" | awk '{print$2"\t"$5-1"\t"$6"\t""transposable_element"}' | bedtools sort > ./TAIR10_transposable_elements_sorted
-#bedtools merge -i TAIR10_transposable_elements_sorted | awk '{print$1"\t"$2"\t"$3"\t""TE"}' TAIR10_transposable_elements_sorted_merge
+#bedtools merge -i TAIR10_transposable_elements_sorted | awk '{print$1"\t"$2"\t"$3"\t""TE"}' > TAIR10_transposable_elements_sorted_merge
 
 #H3K4me1
 #GSM3674621_H3K4me1_leaf_R1.bedgraph.gz

@@ -540,7 +540,7 @@ ggsave("./analysis/Fig4_final.jpeg", Fig4_f, width = 330, height = 300, units = 
 #----------------------------------------------------------------------------------------------------#
 state_10_raw_order_new_final <- read_delim("./data/Fig4/state_10_raw_order_new_final", delim = "\t", col_names = c("Chr", "str", "end", "state", "label")) 
 
-state_10_raw_order_new_final_sum_SNP <- read_delim("./data/state_10_raw_order_new_final_ISNP_Col_Ler", delim = "\t", col_names = c("Chr", "str", "end", "state", "label")) %>%
+state_10_raw_order_new_final_sum_SNP <- read_delim("./data/Fig4/state_10_raw_order_new_final_ISNP_Col_Ler", delim = "\t", col_names = c("Chr", "str", "end", "state", "label")) %>%
   group_by(label) %>%
   summarise(sum_SNP = n())
 

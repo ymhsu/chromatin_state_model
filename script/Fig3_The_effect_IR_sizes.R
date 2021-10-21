@@ -8,10 +8,10 @@ setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chrom
 #Using all intergenic regions between protein coding genes to perform the analysis
 
 #load all IR 
-Intergenic_region_transcription_bed <- read_delim("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_f", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription"))
+Intergenic_region_transcription_bed <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_f", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription"))
 
 #load IR with intersected Rowan's CO interval
-Intergenic_region_transcription_RCO_bed <- read_delim("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_RCO", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "Chr_CO", "str_CO", "end_CO", "sel_420", "CO_l"))
+Intergenic_region_transcription_RCO_bed <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_RCO", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "Chr_CO", "str_CO", "end_CO", "sel_420", "CO_l"))
 
 #calculate sum of CO for each IR that intersects Rowan's COs
 RCO_sum_transcription <- Intergenic_region_transcription_RCO_bed %>%
@@ -111,7 +111,7 @@ experimental_rec_state <- state_bp_sum %>%
   select(state, experimental_rec)
 
 #load the IR information with state
-Intergenic_region_transcription_bed_state <- read_delim("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/paper_draft_analysis/data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_state", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "state"))
+Intergenic_region_transcription_bed_state <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_state", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "state"))
 
 #create the list of each IR with 10 states which can connect with the sum of bp of states of each IR later
 IR_size_group_state_list <- tibble(
