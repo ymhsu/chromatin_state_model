@@ -1,12 +1,14 @@
-#trick
-#one wants to split up one figure into two in a quick way
-#https://pinetools.com/split-image
-
+#change the directory "chromatin_state_model" as the working directory
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
-#import necessary packages
-Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "ggpmisc", "combinat")
-lapply(Packages, library, character.only = TRUE)
+#using "p_load" from the package "pacman" to install and load necessary packages
+install.packages("pacman")
+library(pacman)
+
+Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
+p_load(Packages, character.only = TRUE)
+
+#lapply(Packages, library, character.only = TRUE)
 
 #this analysis is to check whether different sizes of bins will give us different optimized recrate
 Ara_Chr_label <- vector(mode = "list", length = 5)
@@ -101,7 +103,7 @@ paths_den_table_ICO_combined <-
     "./data/Fig4/",
     "den_table_",
     bin_name,
-    "_ICO_raw_bed"
+    "_ICO_raw_mid_bed"
   )
 
 den_table_ICO_sum = vector("list", length = length(bin_name))
@@ -130,7 +132,7 @@ for (i in seq_along(bin_name)) {
     summarise(sum_ICO = sum(CO_n), .groups = "drop") %>%
     split(.$cross)
 }
-
+den_table_ICO_sum[[11]]
 den_table_f_all_CO = vector("list", length(bin_name))
 
 for (i in seq_along(bin_name)) {
@@ -261,6 +263,7 @@ den_table_f_CO_SNP_Ian_100kb_combined_masked_region <- bind_rows(den_table_f_CO_
   mutate(overlapped_masked = if_else(sum_overlapped_masked_value != 0, "yes", "no")) %>%
   select(Chr, str, end, chr_bin, overlapped_masked)
 
+#
 Ian_pop_num <- tibble(cross_f = c(str_c(c("Col_Bur", "Col_Ler", "Col_Ws", "Col_Ct", "Col_Clc"),"_Ian"), "Col_Ler_Rowan"),
                       pop_n = c(180, 245, 188, 305, 189, 2182))
 
@@ -275,52 +278,137 @@ den_table_f_CO_SNP_Ian_100kb_combined <- bind_rows(den_table_f_CO_SNP_Ian_100kb)
   ungroup()
 
 
-den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list <- den_table_f_CO_SNP_Ian_100kb_combined %>%
-  filter(Recrate !=0) %>%
+den_table_f_CO_SNP_Ian_100kb_combined_list <- den_table_f_CO_SNP_Ian_100kb_combined %>%
   split(.$cross_f) 
 
 names(den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list)
 
-nls_model_Ian <- vector("list", length = length(Ian_pop_num$cross_f))
+#create the function for producing the log likelihood using 3 parameters for SNP effect
+SNP_effect_ex_f <- function(a, data){
+  x <- data %>%
+    mutate(intercept = a[1], linear = a[2], ex = a[3], physical_length = (end-str)/10^6, sum_CO = Recrate*physical_length*2*pop_n/100) %>%
+    mutate(predicted_rec = (intercept+linear*den_SNP_bin)*exp(-ex*den_SNP_bin)) %>% 
+    mutate(p_CO = if_else(predicted_rec*physical_length/100 < 1, predicted_rec*physical_length/100, 1-10^-10), p_noCO = 1-p_CO) %>%
+    mutate(log_likelihood = sum_CO*log(p_CO) + (pop_n*2-sum_CO)*log(p_noCO)) 
+  
+  sum(x$log_likelihood)  
+  
+}
+
+#perform optimization using 3 parameters for 6 pops 
+registerDoParallel(cores = 6)
+getDoParWorkers()
+
+op_SNP_effect_ex <-
+  foreach(j=1:6, .packages = c("tidyverse")) %dopar% {
+    optim(
+      c(1, 0.1, 0.02),
+      SNP_effect_ex_f,
+      data = den_table_f_CO_SNP_Ian_100kb_combined_list[[j]],
+      control = list(fnscale=-1, maxit=800, REPORT=1, trace=6),
+      method = c("L-BFGS-B"),
+      #upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.9999, 0.9999, 0.9999, 0.9999, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf),
+      lower = rep(10^-8, 3))
+  }
+
+#create the function for the optimization using 2 parameters for SNP effect (the linear term excluded)
+SNP_effect_H0_f <- function(a, data){
+  x <- data %>%
+    mutate(intercept = a[1], ex = a[2], physical_length = (end-str)/10^6, sum_CO = Recrate*physical_length*2*pop_n/100) %>%
+    mutate(predicted_rec = intercept*exp(-ex*den_SNP_bin)) %>% 
+    mutate(p_CO = if_else(predicted_rec*physical_length/100 < 1, predicted_rec*physical_length/100, 1-10^-10), p_noCO = 1-p_CO) %>%
+    mutate(log_likelihood = sum_CO*log(p_CO) + (pop_n*2-sum_CO)*log(p_noCO)) 
+  
+  sum(x$log_likelihood)  
+  
+}
+
+#perform optimization using 2 parameters for 6 pops
+op_SNP_effect_H0 <-
+  foreach(j=1:6, .packages = c("tidyverse")) %dopar% {
+    optim(
+      c(1, 0.02),
+      SNP_effect_H0_f,
+      data = den_table_f_CO_SNP_Ian_100kb_combined_list[[j]],
+      control = list(fnscale=-1, maxit=800, REPORT=1, trace=6),
+      method = c("L-BFGS-B"),
+      #upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.9999, 0.9999, 0.9999, 0.9999, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf),
+      lower = rep(10^-8, 3))
+  }
 
 
-for (i in seq_along(nls_model_Ian)) {
-  nls_model_Ian[[i]] <- summary(nls(
-    Recrate ~ (intercept+linear*den_SNP_bin)*exp(-ex*den_SNP_bin),
-    data = den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list[[i]],
-    start = list(intercept = 1, linear = 0.1, ex = 0.02)))
+#compare two models using likelihood ratio test
+ll_test_result <- vector("list", length = length(op_SNP_effect_H0))
+p_value_ll_test <- vector("list", length = length(op_SNP_effect_H0))
+SNP_effect_ex_tibble <- vector("list", length = length(op_SNP_effect_H0))
+
+for (i in seq_along(ll_test_result)) {
+  #create the ratio of likelihood ratio test
+  ll_test_result[[i]] <- -2*(op_SNP_effect_H0[[i]]$value-op_SNP_effect_ex[[i]]$value)
+  
+  #use the critical value of chi square to get the p-value
+  p_value_ll_test[[i]] <- signif(pchisq(ll_test_result[[i]], 1, lower.tail = FALSE), 2)
+  
+  #merge the table including the information of parameters, p-value and cross information 
+  SNP_effect_ex_tibble[[i]] <- tibble(
+    para_type = c("intercept", "linear", "ex"),
+    para = op_SNP_effect_ex[[i]]$par) %>%
+    spread(key = para_type, value = para) %>%
+    mutate(cross_f = names(den_table_f_CO_SNP_Ian_100kb_combined_list)[[i]], 
+           p_value = if_else(substr(p_value_ll_test[[i]], 2, 2) == ".", as.character(p_value_ll_test[[i]]), str_c(str_sub(p_value_ll_test[[i]], 1, 1), ".0", str_sub(p_value_ll_test[[i]], 2, nchar(p_value_ll_test[[i]]))))) 
+  
+}
+
+#bind the table for creating another table for plotting fitted line
+SNP_ll_model_estimate <- bind_rows(SNP_effect_ex_tibble) 
+
+
+SNP_ll_model_f <- tibble(den_SNP_bin = rep(seq(0,25,0.5),6),
+                         cross_f = rep(c(str_c(c("Col_Bur", "Col_Ler", "Col_Ws", "Col_Ct", "Col_Clc"),"_Ian"), "Col_Ler_Rowan"), each = 51)) %>%
+  left_join(SNP_ll_model_estimate) %>%
+  mutate(fit_final = (intercept+linear*den_SNP_bin)*exp(-ex*den_SNP_bin)) %>%
+  mutate(cross_f = str_replace(cross_f, "_Rowan", " (Rowan et al.)")) %>%
+  mutate(cross_f = str_replace(cross_f, "_Ian", " (Blackwell et al.)")) %>%
+  mutate(cross_f = factor(cross_f, levels = c("Col_Ler (Rowan et al.)", str_c("Col_", c("Ler", "Bur", "Clc", "Ws", "Ct"), " (Blackwell et al.)")))) %>%
+  split(.$cross_f)
+
+#create the table for the raw scatterplot of 6 pops
+den_table_f_CO_SNP_Ian_100kb_combined_list_f <- bind_rows(den_table_f_CO_SNP_Ian_100kb_combined_list) %>%
+  mutate(cross_f = str_replace(cross_f, "_Rowan", " (Rowan et al.)")) %>%
+  mutate(cross_f = str_replace(cross_f, "_Ian", " (Blackwell et al.)")) %>%
+  mutate(cross_f = factor(cross_f, levels = c("Col_Ler (Rowan et al.)", str_c("Col_", c("Ler", "Bur", "Clc", "Ws", "Ct"), " (Blackwell et al.)")))) %>%
+  split(.$cross_f)
+
+#create Fig4
+Fig4_top_ll_raw = vector("list", length = length(den_table_f_CO_SNP_Ian_100kb_combined_list_f))
+
+for (i in seq_along(Fig4_top_ll_raw)) {
+  #set the location for p-value from likelihood ratio test
+  x_location_Fig4 = 0.7*(max(den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]]$end)-min(den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]]$str))/10^6
+  y_location_Fig4 = 0.8*(max(den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]]$Recrate) %/% 1 + 1)
+  
+  Fig4_top_ll_raw[[i]] <- den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]] %>%
+    ggplot() +
+    geom_point(aes(den_SNP_bin, Recrate)) +
+    geom_line(aes(den_SNP_bin, fit_final), color = "red", data = SNP_ll_model_f[[i]]) +
+    facet_wrap(~ cross_f, nrow = 1, scales = "free")+
+    geom_text(x =  x_location_Fig4, y = y_location_Fig4, label = str_c("p = ", SNP_ll_model_f[[i]]$p_value[[1]]), parse = FALSE, size = 5) +
+    theme_bw() +
+    labs(y = "recombination rate (cM/Mb)", x = "The density of SNPs (counts/kb)") +
+    theme(strip.text.x = element_text(colour = "black", face = "bold", size = 18), legend.text = element_text(size = 12, face = "bold"),
+          legend.title = element_blank(), axis.title.y = element_blank(), axis.title.x = element_blank(), 
+          axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18), axis.text.x = element_text(size = 16, face = "bold"))
+  
+  
 }
 
 
-nls_model_estimate <- bind_rows(nls_model_Ian[[1]]$coefficients[,1], nls_model_Ian[[2]]$coefficients[,1], nls_model_Ian[[3]]$coefficients[,1], nls_model_Ian[[4]]$coefficients[,1], nls_model_Ian[[5]]$coefficients[,1], nls_model_Ian[[6]]$coefficients[,1]) %>%
-  mutate(cross_f = names(den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list)) 
+Fig4_top_ll_merged <- ggarrange(Fig4_top_ll_raw[[1]], Fig4_top_ll_raw[[2]], Fig4_top_ll_raw[[3]], Fig4_top_ll_raw[[4]], Fig4_top_ll_raw[[5]], Fig4_top_ll_raw[[6]], nrow = 2, ncol = 3)
 
-nls_model_f <- tibble(den_SNP_bin = rep(seq(0,25,0.5),6),
-                      cross_f = rep(c(str_c(c("Col_Bur", "Col_Ler", "Col_Ws", "Col_Ct", "Col_Clc"),"_Ian"), "Col_Ler_Rowan"), each = 51)) %>%
-  left_join(nls_model_estimate) %>%
-  mutate(fit_final = (intercept+linear*den_SNP_bin)*exp(-ex*den_SNP_bin)) %>%
-  mutate(cross_f = str_replace(cross_f, "_Rowan", " (Rowan et al.)")) %>%
-  mutate(cross_f = str_replace(cross_f, "_Ian", " (Blackwell et al.)"))
+Fig4_top_ll_merged_f <- annotate_figure(Fig4_top_ll_merged, bottom = text_grob("The density of SNPs (counts/kb)", face = "bold", size = 18), left = text_grob("Recombination rate (cM/Mb)", rot = 90, face = "bold", size = 18)) +
+  theme(plot.margin = margin(0,0.5,0.5,0, "cm"), plot.background = element_rect(fill = "white", color = "white")) 
 
-den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list_f <- bind_rows(den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list) %>%
-  mutate(cross_f = str_replace(cross_f, "_Rowan", " (Rowan et al.)")) %>%
-  mutate(cross_f = str_replace(cross_f, "_Ian", " (Blackwell et al.)"))
-
-den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list_f$cross_f <- factor(den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list_f$cross_f, levels = c("Col_Ler (Rowan et al.)", str_c("Col_", c("Ler", "Bur", "Clc", "Ws", "Ct"), " (Blackwell et al.)")))
-
-nls_model_f$cross_f <- factor(nls_model_f$cross_f, levels = c("Col_Ler (Rowan et al.)", str_c("Col_", c("Ler", "Bur", "Clc", "Ws", "Ct"), " (Blackwell et al.)")))
-
-Fig4_top <- den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list_f %>%
-  ggplot() +
-  geom_point(aes(den_SNP_bin, Recrate)) +
-  geom_line(aes(den_SNP_bin, fit_final), color = "red", data = nls_model_f) +
-  facet_wrap(~ cross_f, nrow = 2, scales = "free")+
-  theme_bw() +
-  labs(y = "recombination rate (cM/Mb)", x = "The density of SNPs (counts/kb)") +
-  theme(strip.text.x = element_text(colour = "black", face = "bold", size = 18), legend.text = element_text(size = 12, face = "bold"),
-        legend.title = element_blank(), axis.title.y = element_text(size = 18, face = "bold"), axis.title.x = element_text(size = 18, face = "bold"), 
-        axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18), axis.text.x = element_text(size = 16, face = "bold"))
-
+ggsave("./analysis/Fig4_top_ll_merged_f.jpeg", Fig4_top_ll_merged_f, width = 330, height = 200, units = c("mm"), dpi = 320)
 
 
 ISNP_total <- den_table_f_CO_SNP_Ian_100kb_combined %>%
@@ -460,6 +548,16 @@ op_sum_chi_square_SNP_effect_shffuling_first_50q_threads_v2 <-
     )
   }
 
+system.time(optim(
+  c(1, 1),
+  sum_chi_square_SNP_effect_first_q_50,
+  data1 = den_table_f_CO_SNP_Ian_100kb_combined_v2,
+  data2 = shuffling_cross_combn_list[[1]][[1]],
+  control = list(maxit=800, REPORT=1, trace=6),
+  method = c("L-BFGS-B"),
+  lower = rep(10^-10, 2)
+))
+
 #check whether upper limit can give us different result
 op_sum_chi_square_SNP_effect_shffuling_first_50q_threads_v3 <- 
   foreach(i=c(1:2), .packages = c("tidyverse")) %:%
@@ -493,8 +591,7 @@ for (i in seq_along(sum_chi_square_list_first_50q_v2)) {
 }
 
 sum_chi_square_list_first_50q_base_r_v2_t <- bind_rows(sum_chi_square_list_first_50q_v2)
-write_delim(sum_chi_square_list_first_50q_base_r_v2_t, "analysis/sum_chi_square_list_first_50q_base_r_v2_t", delim = "\t", col_names = TRUE)
-
+write_delim(sum_chi_square_list_first_50q_base_r_v2_t, "analysis/sum_chi_square_list_first_50q_base_r_mid_CO_t", delim = "\t", col_names = TRUE)
 
 sum_chi_square_fg <- function(data1, data2){
   x <- bind_rows(data1) %>%
@@ -534,7 +631,7 @@ Fig4_bottom <- sum_chi_square_fg(sum_chi_square_list_first_50q_base_r_v2_t, op_I
 Fig4_f <- ggarrange(Fig4_top, Fig4_bottom, nrow = 2)
 
 ggsave("./analysis/Fig4_final.jpeg", Fig4_f, width = 330, height = 300, units = c("mm"), dpi = 320)
-
+ggsave("./analysis/Fig4_bottom_new_mid_RCO.jpeg", Fig4_bottom, width = 330, height = 200, units = c("mm"), dpi = 320)
 
 #SNP effect in the segments of states
 #----------------------------------------------------------------------------------------------------#

@@ -1,8 +1,14 @@
-Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider")
-lapply(Packages, library, character.only = TRUE)
+#using "p_load" from the package "pacman" to install and load necessary packages
+install.packages("pacman")
+library(pacman)
+
+Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
+p_load(Packages, character.only = TRUE)
+
+#lapply(Packages, library, character.only = TRUE)
 
 
-#change the current directory as the working directory
+#change the directory "chromatin_state_model" as the working directory
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #Using all intergenic regions between protein coding genes to perform the analysis
@@ -288,8 +294,6 @@ Fig3_bottom_f <- bind_rows(Intergenic_region_transcription_bed_RCO_group_500bp) 
 Fig3_final_f <- ggarrange(Fig3_top_f, Fig3_bottom_f, nrow = 2)
 
 ggsave("./analysis/Fig3_final_f.jpeg", Fig3_final_f, width = 330, height = 288, units = c("mm"), dpi = 320)
-550*0.6
-480*0.6
 
 
 #produce different stages of IR fig 3 top to show how we improve the model
@@ -354,7 +358,6 @@ ggsave("./analysis/Fig3_top_f_IR_fit.jpeg", Fig3_top_f_IR_fit, width = 300, heig
 ggsave("./analysis/Fig3_bottom_f_presentation.jpeg", Fig3_bottom_f, width = 300, height = 180, units = c("mm"), dpi = 320)
 
 
-Fig3_bottom_f
 
 #######################old plot without any predicted CO rate ##############################
 Fig3_top <- bind_rows(Intergenic_region_transcription_bed_RCO_group_500bp) %>%

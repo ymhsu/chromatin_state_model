@@ -1,6 +1,13 @@
-Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider")
-lapply(Packages, library, character.only = TRUE)
+#using "p_load" from the package "pacman" to install and load necessary packages
+install.packages("pacman")
+library(pacman)
 
+Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
+p_load(Packages, character.only = TRUE)
+
+#lapply(Packages, library, character.only = TRUE)
+
+#change the directory "chromatin_state_model" as the working directory
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #######The analysis of Fig 2A#######
@@ -18,16 +25,16 @@ state_bp_sum <- chromatin_state_total_SV %>%
 #import CO in 9 states
 chromatin_state_total_R_CO_raw_noSV <- read_delim("./data/Fig2/chromatin_state_total_noSV_R_CO", delim = "\t", col_names = c("Chr", "str", "end", "state", "Chr_CO","str_CO", "end_CO", "Sel_420", "CO_l"))
 
-#sum of CO in 9 states
+#calculate sum of CO in 9 states
 state9_CO_sum <- chromatin_state_total_R_CO_raw_noSV %>%
   mutate(CO_n = (end-str)/(end_CO-str_CO)) %>%
   group_by(state) %>%
   summarise(sum_CO = sum(CO_n)) 
 
-#import CO in SVs
+#import CO intersected with SVs
 SV_raw_R_CO <- read_delim("./data/Fig2/SV_raw_R_CO", delim = "\t", col_names = c("Chr", "str", "end", "state", "Chr_CO","str_CO", "end_CO", "Sel_420", "CO_l"))
 
-#sum of CO in SV
+#calculate sum of CO located in SV
 SV_CO_sum <- SV_raw_R_CO %>%
   mutate(CO_n = (end-str)/(end_CO-str_CO)) %>%
   group_by(state) %>%
@@ -77,7 +84,6 @@ for (i in seq_along(1:2)) {
     facet_wrap(~type, nrow = 1) +
     labs(x = NULL, y = NULL, fill = NULL) + theme_bw() + 
     theme(axis.text = element_blank(), axis.ticks = element_blank(), strip.text.x = element_text(colour = "black", face = "bold", size = 20), legend.title = element_blank(), plot.margin = margin(0,0,0,3, "cm"))
-  #theme(axis.text = element_blank(), axis.ticks = element_blank(), strip.text.x = element_text(colour = "black", face = "bold", size = 20), legend.title = element_blank(), panel.spacing.x = unit(0,"line"), plot.margin = margin(0.5,0,2,0, "cm"))
   
 }
 
@@ -1101,8 +1107,6 @@ den_table_state_f_state8_m_pre_state_100k <- den_table_state_f_state8_m[[11]] %>
 test_plot <- den_table_f_all_CO[[11]] %>%
   left_join(den_table_state_f_state8_m_pre_state_100k)
 
-plot(test_plot$Recrate_Rowan, test_plot$rec_based_on_state)
-
 #calculate explained variance of this prediction
 explained_var_test_plot <- round(1-sum((test_plot$Recrate_Rowan - test_plot$rec_based_on_state)^2)/sum((test_plot$Recrate_Rowan - mean(test_plot$Recrate_Rowan))^2),2)
 
@@ -1120,6 +1124,7 @@ SP_Figure_S2_test <- test_plot %>%
       "overlapped"
     )
   )) %>% ggscatter("rec_based_on_state", "Recrate_Rowan", color = "status", palette = c(pal_npg("nrc", alpha = 1)(6))[c(1,3,4)]) +
+  geom_abline(slope = 1, size = 1) +
   theme_bw() +
   labs(y = "Recombination rate (cM/Mb)", x = "Predicted recombination rate (cM/Mb)") +
   theme(

@@ -1,14 +1,30 @@
-#In the final version of the model, we stayed with 10 states without pooling some states together as intra or intergenic states
-#and we also let IR and SNP effect of different states be the same
+#This script intends to create all the figures and tables related to our final model with 15 parameters.
+#We create Figure 5, Figure S7, Figure S8, Table S3, Table S4, and SP file2 here.
 
+#In the full model, we have 10 parameters for each state (10 parameters), 2 parameters of SNP effect and 3 parameters for IR effect.
+#note that IR/SNP effect are the same for each segment of 10 states
+
+#change the directory "chromatin_state_model" as the working directory
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
-#import necessary packages
-Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "ggpmisc")
-lapply(Packages, library, character.only = TRUE)
+#using "p_load" from the package "pacman" to install and load necessary packages
+install.packages("pacman")
+library(pacman)
 
-#import data (the segment of state data and CO data)
-#state data in df binning table
+Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
+p_load(Packages, character.only = TRUE)
+
+#lapply(Packages, library, character.only = TRUE)
+
+#Set given labels for the following analysis
+Ara_Chr_label <- vector(mode = "list", length = 5)
+bin_size <- c(500, 1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 50000, 100000, 200000, 500000, 1000000)
+bin_name <-
+  c("0_5k", "1k", "2k", "3k", "4k", "5k", "10k", "15k", "20k", "50k", "100k", "200k", "500k", "1000k")
+Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
+
+#Import data (the segment of state data and CO data)
+#State data in tables with different size of bins
 #Every state segment with intersected IR info
 paths_den_table_IR_state_Ler_IR_seg <-
   str_c(
@@ -37,28 +53,17 @@ for (size in seq_along(bin_name)) {
     mutate(den_ISNP_seg = 1000*sum_ISNP/(end - str)) %>%
     select(-sum_ISNP)
   
-  
-  
   den_table_ISNP_IR_state_Ler_sep_seg[[size]] <- read_delim(paths_den_table_IR_state_Ler_IR_seg[[size]], delim = "\t", col_names = c("Chr", "str", "end", "feature", "size_IR", "IR_type", "str_bin", "end_bin", "chr_bin")) %>%
     left_join(x, by = c("Chr", "str", "end", "feature")) %>%
     replace_na(list(den_ISNP_seg = 0)) %>%
     mutate(size = (end - str)) %>%
-    #mutate(den_SNP_seg_0_1k = den_SNP_seg*0.1, den_SNP_seg_0_3k = den_SNP_seg*0.3, den_SNP_seg_0_5k = den_SNP_seg*0.5, den_SNP_seg_3k = den_SNP_seg*3, den_SNP_seg_5k = den_SNP_seg*5, den_SNP_seg_10k = den_SNP_seg*10) %>%
     group_by(chr_bin) %>%
     mutate(size_bin = sum(end-str)) %>%
     arrange(Chr, str) %>%
     ungroup() 
 }
 
-#calculate CO rate in df binning table
-Ara_Chr_label <- vector(mode = "list", length = 5)
-
-bin_size <- c(500, 1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 50000, 100000, 200000, 500000, 1000000)
-
-bin_name <-
-  c("0_5k", "1k", "2k", "3k", "4k", "5k", "10k", "15k", "20k", "50k", "100k", "200k", "500k", "1000k")
-Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
-
+#Create tables with different size of bins for the latter computation of CO rate of each bins
 Ara_genome_bed <-
   read_delim(
     "./data/Fig4/Ara_genome_bed",
@@ -67,6 +72,7 @@ Ara_genome_bed <-
   )
 
 df_new = vector(mode = "list", length = 5)
+
 for (chr in seq_along(Ara_Chr_label)) {
   for (size in seq_along(bin_size)) {
     Ara_Chr_label[[chr]][[size]] <-
@@ -98,13 +104,14 @@ den_table_list <-
 #read CO file and calculate recombination rate
 paths_den_table_RCO <-
   str_c(
-    "./data/Fig4/",
+    "./data/Fig1/",
     "den_table_",
     bin_name,
-    "_RCO_raw_bed"
+    "_RCO_raw_mid_bed"
   )
 
-#produce the file of the sum of CO (Rowan)
+#produce the file of all bins (50-500 k) with the sum of CO (Rowan)
+#calculate the sum of CO
 den_table_CO_sum = vector("list", length = length(bin_name))
 
 for (i in seq_along(bin_name)) {
@@ -129,87 +136,25 @@ for (i in seq_along(bin_name)) {
     summarise(sum_CO = sum(CO_n), .groups = "drop")  
 }
 
-
-
-#produce the file of the sum of CO (Ian)
-cross_combination <- str_c(c("Col_Bur", "Col_Ws", "Col_Clc", "Col_Ct", "Col_Ler"), "_raw")
-
-paths_den_table_ICO_combined <-
-  str_c(
-    "./data/Fig4/",
-    "den_table_",
-    bin_name,
-    "_ICO_raw_bed"
-  )
-
-den_table_ICO_sum = vector("list", length = length(bin_name))
+#the list of different bins with recombination rate based on CO intervals of Rowan
+den_table_f_all_RCO = vector("list", length(bin_name))
 
 for (i in seq_along(bin_name)) {
-  den_table_ICO_sum[[i]] <-
-    read_delim(
-      paths_den_table_ICO_combined[[i]],
-      delim = "\t",
-      col_names = c(
-        "Chr",
-        "str",
-        "end",
-        "chr_bin",
-        "Chr_CO",
-        "str_CO",
-        "end_CO",
-        "mid_CO",
-        "size",
-        "cross"
-      )
-    ) %>%
-    mutate(CO_n = (end - str) / (end_CO - str_CO)) %>%
-    mutate(cross = factor(.$cross, levels = cross_combination)) %>%
-    group_by(chr_bin, cross) %>%
-    summarise(sum_ICO = sum(CO_n), .groups = "drop") %>%
-    split(.$cross)
-}
-
-den_table_f_all_CO = vector("list", length(bin_name))
-
-for (i in seq_along(bin_name)) {
-  den_table_f_all_CO[[i]] <- den_table_list[[i]] %>%
+  den_table_f_all_RCO[[i]] <- den_table_list[[i]] %>%
     left_join(den_table_CO_sum[[i]]) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Bur_raw) %>%
-    mutate(sum_ICO_Bur = sum_ICO) %>%
-    select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Ct_raw) %>%
-    mutate(sum_ICO_Ct = sum_ICO) %>%
-    select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Ler_raw) %>%
-    mutate(sum_ICO_Ler = sum_ICO) %>%
-    select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Ws_raw) %>%
-    mutate(sum_ICO_Ws = sum_ICO) %>%
-    select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Clc_raw) %>%
-    mutate(sum_ICO_Clc = sum_ICO) %>%
-    select(-cross, -sum_ICO) %>%
-    replace_na(list(sum_ICO_Ler = 0, sum_ICO_Bur = 0, sum_ICO_Ws = 0, sum_ICO_Ct = 0, sum_ICO_Clc = 0)) %>%
-    mutate(Recrate_Ler = sum_ICO_Ler/2/245/(end-str)*10^8, Recrate_Clc = sum_ICO_Clc/2/189/(end-str)*10^8, Recrate_Ct = sum_ICO_Ct/2/305/(end-str)*10^8, Recrate_Ws = sum_ICO_Ws/2/188/(end-str)*10^8, Recrate_Bur = sum_ICO_Bur/2/180/(end-str)*10^8) %>%
-    mutate(Recrate_I_equal = (Recrate_Clc+Recrate_Ws+Recrate_Ct+Recrate_Bur+Recrate_Ler)/5, Recrate_I_noLer = (Recrate_Clc+Recrate_Ws+Recrate_Ct+Recrate_Bur)/4) %>%
-    #select(sum_ICO_Bur, sum_ICO_Clc, sum_ICO_Ct, sum_ICO_Ler, sum_ICO_Ws) %>%
-    replace_na(list(sum_CO = 0, sum_TSS = 0, sum_5_prime_UTR = 0)) %>%
+    replace_na(list(sum_CO = 0)) %>%
     mutate(Recrate_Rowan = sum_CO / 2 / 2182 / (end - str) * 10 ^ 8, size_bin = end-str) %>%
     group_by(Chr) %>%
     mutate(
       genetic_length = sum(Recrate_Rowan * (end - str) * 10 ^ -6),
-      genetic_length_Clc = sum(Recrate_Clc*size_bin/1000000),
       physical_length = (end - str) * 10 ^ -6
     ) %>%
     ungroup() %>%
-    mutate(var_rec_Rowan = Recrate_Rowan/2182/2/(end-str)*10^8, var_rec_Ler = Recrate_Ler/245/2/(end-str)*10^8, var_rec_Clc = Recrate_Clc/189/2/(end-str)*10^8, var_rec_Ct = Recrate_Ct/305/2/(end-str)*10^8, var_rec_Ws = Recrate_Ws/188/2/(end-str)*10^8, var_rec_Bur = Recrate_Bur/180/2/(end-str)*10^8) %>%
-    mutate(var_rec_Ian = (var_rec_Clc+var_rec_Ct+var_rec_Ws+var_rec_Bur)/16) %>%
-    mutate(var_rec_df_Rowan_Ian = var_rec_Rowan+var_rec_Ian) %>%
-    mutate(sd_rec_df_Rowan_Ian = sqrt(var_rec_df_Rowan_Ian))
+    mutate(var_rec_Rowan = Recrate_Rowan/2182/2/(end-str)*10^8) 
 }
 
 ######modeling (adding SNP/IR effect in state9/SV)######
-#####make the function for optimization
+#####make the function for optimization (To maximize log likelihood score)
 ####the function for running SNP/IR effect (10 states, same effect for these two effects)###
 state_9_same_SNP_IR_para_modu_v1_consistent <-  function(a, data, data2) {
   para_d <- tibble(
@@ -224,10 +169,16 @@ state_9_same_SNP_IR_para_modu_v1_consistent <-  function(a, data, data2) {
   
   x = data %>%
     left_join(para_d, by = c("feature")) %>%
-    #mutate(SNP_para1 = as.double(SNP_para1), SNP_para2 = as.double(SNP_para2)) %>%
+    #calculation for the full model (10 states + IR effect + SNP effect), for rescaling see 14 lines below
     mutate(raw_recrate_v2 = if_else(size_IR == 0, raw_rec*(1 + SNP_para1*den_ISNP_seg)*exp(-SNP_para2*den_ISNP_seg)*size/size_bin, raw_rec*(1 + SNP_para1*den_ISNP_seg)*exp(-SNP_para2*den_ISNP_seg)/(IR_para1 + IR_para2*exp(-IR_para3*size_IR/1000))*size/size_bin)) %>%
+    #calculation for the model (10 states + SNP effect)
+    #mutate(raw_recrate_v2 = raw_rec*(1 + SNP_para1*den_ISNP_seg)*exp(-SNP_para2*den_ISNP_seg)*size/size_bin) %>%
+    #calculation for the model (10 states + IR effect)
+    #mutate(raw_recrate_v2 = if_else(size_IR == 0, raw_rec*size/size_bin, raw_rec/(IR_para1 + IR_para2*exp(-IR_para3*size_IR/1000))*size/size_bin)) %>%
+    #calculation for the model (10 states)
+    #mutate(raw_recrate_v2 = raw_rec*size/size_bin) %>%
     group_by(chr_bin) %>%
-    summarise(recrate_non_rescalling = sum(raw_recrate_v2)) %>%
+    summarise(recrate_non_rescaling = sum(raw_recrate_v2)) %>%
     mutate(Chr = str_sub(chr_bin, 1, 4), label = str_sub(chr_bin, 6, 20)) %>%
     mutate(label = as.double(label)) %>%
     arrange(Chr, label)
@@ -236,11 +187,14 @@ state_9_same_SNP_IR_para_modu_v1_consistent <-  function(a, data, data2) {
     left_join(x, by = c("Chr", "chr_bin")) %>%
     drop_na() %>%
     group_by(Chr) %>%
-    mutate(pre_genetic_length = sum(recrate_non_rescalling*physical_length)) %>%
-    mutate(rescaled_model_rec_rates = recrate_non_rescalling*genetic_length/pre_genetic_length) 
+    mutate(pre_genetic_length = sum(recrate_non_rescaling*physical_length)) %>%
+    mutate(rescaled_model_rec_rates = recrate_non_rescaling*genetic_length/pre_genetic_length) %>%
+    mutate(p_CO = if_else(rescaled_model_rec_rates*physical_length/100 < 1, rescaled_model_rec_rates*physical_length/100, 1-10^-10), p_noCO = 1-p_CO) %>%
+    #use the following line to bypass the genetic length rescaling
+    #mutate(p_CO = if_else(recrate_non_rescaling*physical_length/100 < 1, recrate_non_rescaling*physical_length/100, 1-10^-10), p_noCO = 1-p_CO) %>%
+    mutate(log_likelihood = sum_CO*log(p_CO) + (2182*2-sum_CO)*log(p_noCO))
   
-  diff <- x2$Recrate_Rowan - x2$rescaled_model_rec_rates
-  sum(diff^2)
+  sum(x2$log_likelihood)
 }
 
 ###run optimizations
@@ -255,22 +209,23 @@ for (i in c(1:8)) {
 registerDoParallel(cores = 8)
 getDoParWorkers()
 
-test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent <-
+test_foreach_modeling_same_SNP_3_IR_10_states_50_500k_all_IR_consistent <-
   foreach(i=c(10:13), .packages = c("tidyverse")) %:%
   foreach(j=1:8, .packages = c("tidyverse")) %dopar% {
     optim(
       state_9_same_SNP_3_IR_seg_rob_initial_par[[j]],
       state_9_same_SNP_IR_para_modu_v1_consistent,
       data = den_table_ISNP_IR_state_Ler_sep_seg[[i]],
-      data2 = den_table_f_all_CO[[i]],
-      control = list(maxit=800, REPORT=1, trace=6),
+      data2 = den_table_f_all_RCO[[i]],
+      control = list(fnscale=-1, maxit=800, REPORT=1, trace=6),
       method = c("L-BFGS-B"),
       #upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.9999, 0.9999, 0.9999, 0.9999, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf),
       lower = rep(10^-8, 15))
   }
-test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent[[4]][[1]]$value
 
-#rescaling optimized CO rate of 10 states of 6 bins
+#among replicates of the optimization result, their recombination rates of each state create different predicted genetic length.
+#Thus we need another rescaling process to make these predicted recombination rate comparable. 
+#rescaling optimized CO rate of 10 states of 4 bins
 rescaling_state_9_seg_same_SNP_3_IR_modu_v2_test_rec <- function(a, data, data2) {
   para_d <- tibble(
     feature = c(str_c("state", c(1:9)), "SV"),
@@ -319,10 +274,11 @@ final_op_para_modified_9_state_3IR_SNP_consistent_first_trial <- vector("list", 
 
 for (i in seq_along(1:4)) {
   for (j in seq_along(1:8)) {
-    final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]] <- rescaling_state_9_seg_same_SNP_3_IR_modu_v2_test_rec(test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent[[i]][[j]]$par, den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_CO[[i+9]])
+    final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]] <- rescaling_state_9_seg_same_SNP_3_IR_modu_v2_test_rec(test_foreach_modeling_same_SNP_3_IR_10_states_50_500k_all_IR_consistent[[i]][[j]]$par, den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_RCO[[i+9]])
   }
 }
 
+#the function to produce table with rescaled recombination rate and other parameters
 transform_para_tibble_10_states <- function(data){
   x = tibble(
     para = c(str_c("state", c(1:9)), "SV", "SNP_para1", "SNP_para2", str_c("IR_para", c(1:3))),
@@ -339,16 +295,43 @@ transform_para_tibble_10_states <- function(data){
   x
 }
 
-final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1 <- final_op_para_modified_9_state_3IR_SNP_consistent_first_trial %>%
+final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1 <- final_op_para_modified_9_state_3IR_SNP_consistent_first_trial %>%
   map(. %>% transform_para_tibble_10_states()) %>%
   bind_rows() %>%
   mutate(bin = rep(bin_size[10:13], each = 15))
 
 
-write_delim(final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1, "./analysis/final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1", delim = "\t", col_names = TRUE)
+write_delim(final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1, "./analysis/final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1_ll", delim = "\t", col_names = TRUE)
 
-final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1_l <- final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1 %>%
+final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1_l <- final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1 %>%
   split(.$bin)
+
+#extract the best fit of each bin for the following analysis
+table_para_ll <- vector("list", length = length(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial))
+
+for (i in seq_along(table_para_ll)) {
+  for (j in seq_along(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[1]])) {
+    x <- state_9_same_SNP_IR_para_modu_v1_consistent(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], data2 = den_table_f_all_RCO[[i+9]])
+    test_table <- den_table_f_all_RCO[[i+9]] %>%
+      mutate(predicted_Recrate = state_9_same_SNP_IR_para_modu_v2_rec(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_RCO[[i+9]]))
+    
+    R_square <- 1-sum((test_table$predicted_Recrate-test_table$Recrate_Rowan)^2)/sum((test_table$Recrate_Rowan-mean(test_table$Recrate_Rowan))^2)
+    
+    table_para_ll[[i]][[j]] <- tibble(
+      bin_size = bin_size[i+9],
+      rep = j,
+      para = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]],
+      ll = rep(x, length(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]])), 
+      R_square = R_square
+    ) 
+  }
+}
+
+#only keep the best fit with largest likelihood and make the table as a list
+table_para_ll_max <- bind_rows(table_para_ll) %>%
+  group_by(bin_size) %>%
+  filter(ll == max(ll)) %>%
+  split(.$bin_size)
 
 #####Fig 5: make new landscape plot based on 100-kb bins
 #create the modified function that can show rescaled CO rate (least square 10 states/same SNP and IR effect, including state9/SV)
@@ -390,27 +373,22 @@ Ara_peri_posi <- tibble(
   end_peri = c(18270000, 7320000, 16730000, 6630000, 15550000)
 )
 
-Fig5_tag <- Ara_genome %>% 
+Fig5_tag <- Ara_genome_bed %>% 
   left_join(Ara_peri_posi) %>%
-  mutate(mid_arm = (chr_end+end_peri)/2000000)
+  mutate(mid_arm = (end+end_peri)/2000000)
 
-#create the list of main and inset figures (Chr separated) (using r5 in 100kb of final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1)
+#create the list of main and inset figures (Chr separated) 
 Fig5_main_v2 <- vector("list", length = length(Fig5_tag$Chr))
 Fig5_inset_v2 <- vector("list", length = length(Fig5_tag$Chr))
 Fig5_f_v2 <- vector("list", length = length(Fig5_tag$Chr))
 
-test_table <- den_table_f_all_CO[[11]] %>%
-  mutate(predicted_Recrate = state_9_same_SNP_IR_para_modu_v2_rec(final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1_l$`1e+05`$r5, den_table_ISNP_IR_state_Ler_sep_seg[[11]], den_table_f_all_CO[[11]]))
-
-R_square_Fig5 <- 1-sum((test_table$predicted_Recrate-test_table$Recrate_Rowan)^2)/sum((test_table$Recrate_Rowan-mean(test_table$Recrate_Rowan))^2)
 
 #https://stackoverflow.com/questions/5219671/it-is-possible-to-create-inset-graphs
 Fig5_tag$Chr[[1]]
 for (i in seq_along(Fig5_tag$Chr)) {
   
-  data_Fig5 <- den_table_f_all_CO[[11]] %>%
-    mutate(predicted_Recrate = state_9_same_SNP_IR_para_modu_v1_rec(final_op_para_modified_same_3IR_SNP_10k_500k_10_states_consistent_rep1_l$`1e+05`$r5, den_table_ISNP_IR_state_Ler_sep_seg[[11]], den_table_f_all_CO[[11]])) %>%
-    #filter(Chr == "Chr1" | Chr == "Chr3" | Chr == "Chr5") %>%
+  data_Fig5 <- den_table_f_all_RCO[[11]] %>%
+    mutate(predicted_Recrate = state_9_same_SNP_IR_para_modu_v2_rec(table_para_ll_max[[2]]$para, den_table_ISNP_IR_state_Ler_sep_seg[[11]], den_table_f_all_RCO[[11]])) %>%
     filter(Chr == Fig5_tag$Chr[[i]])
   
   R_square_Fig5 <- round(1-sum((data_Fig5$predicted_Recrate-data_Fig5$Recrate_Rowan)^2)/sum((data_Fig5$Recrate_Rowan-mean(data_Fig5$Recrate_Rowan))^2), 2)
@@ -452,7 +430,7 @@ for (i in seq_along(Fig5_tag$Chr)) {
     draw_plot(Fig5_inset_v2[[i]], x = 0.62, y = .55, width = .35, height = .35)
 }
 
-path_Fig5_v2 <- str_c("Fig5_Chr", seq(1,5), "_new_model_v2.jpeg")
+path_Fig5_v2 <- str_c("Fig5_Chr", seq(1,5), "_new_model_v3.jpeg")
 
 pwalk(list(path_Fig5_v2, Fig5_f_v2), ggsave, path = "./analysis/", width = 320, height = 192, units = c("mm"), dpi = 320)
 
@@ -463,29 +441,35 @@ ggsave("./analysis/Fig5_Chr1_new_model_gra_abs_v1.jpeg", Fig5_f_v2_gra_abs_test,
 
 
 #select the best optimization result for producing Fig S7
+#one may have different best result from the optimization
 SP_table_op_para_combined_v2 <- tibble(
-  para = final_op_para_modified_same_3IR_SNP_10k_500k_10_states_rep2_list[[1]]$para,
-  para_50k = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[1]][[4]],
-  para_100k = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[2]][[5]],
-  para_200k = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[3]][[7]],
-  para_500k = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[4]][[5]]
-)
+  para = c(final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1$para[1:15], "R_square"),
+  para_50k = c(table_para_ll_max[[1]]$para, table_para_ll_max[[1]]$R_square[[1]]),
+  para_100k = c(table_para_ll_max[[2]]$para, table_para_ll_max[[2]]$R_square[[1]]),
+  para_200k = c(table_para_ll_max[[3]]$para, table_para_ll_max[[3]]$R_square[[1]]),
+  para_500k = c(table_para_ll_max[[4]]$para, table_para_ll_max[[4]]$R_square[[1]])
+) %>%
+  mutate(para_50k = if_else(para_50k >= 0.001, round(para_50k, 3), signif(para_50k, 3))) %>%
+  mutate(para_100k = if_else(para_100k >= 0.001, round(para_100k, 3), signif(para_100k, 3))) %>%
+  mutate(para_200k = if_else(para_200k >= 0.001, round(para_200k, 3), signif(para_200k, 3))) %>%
+  mutate(para_500k = if_else(para_500k >= 0.001, round(para_500k, 3), signif(para_500k, 3))) 
 
+signif
 
-write_csv(SP_table_op_para_combined_v2, "./analysis/SP_table_op_para_combined_v2.csv", col_names = TRUE)
+write_csv(SP_table_op_para_combined_v2, "./analysis/SP_table_op_para_combined_v2_ll.csv", col_names = TRUE)
 
 ####produce the scatter plot for figure S7 (state9/SV SNP/IR effect added)####
 den_table_f_scatter_plot_raw_rec = vector("list", length = length(c(1:4)))
 
 #using the best case from the optimization
-optimized_par_50_500k <- list(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[1]][[4]], final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[2]][[5]], final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[3]][[7]], final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[4]][[5]])
+optimized_par_50_500k <- list(table_para_ll_max[[1]]$para, table_para_ll_max[[2]]$para, table_para_ll_max[[3]]$para, table_para_ll_max[[4]]$para)
 
 #create the table for plots
 for (i in c(1:4)) {
-  den_table_f_scatter_plot_raw_rec[[i]] <- den_table_f_all_CO[[i+9]] %>%
+  den_table_f_scatter_plot_raw_rec[[i]] <- den_table_f_all_RCO[[i+9]] %>%
     left_join(Ara_peri_posi, by = "Chr") %>%
     mutate(status = if_else(end < str_peri | str > end_peri, "arms", if_else(str > str_peri & end < end_peri, "pericentromeric_regions", "overlapped"))) %>%
-    mutate(predicted_Recrate =state_9_same_SNP_IR_para_modu_v2_rec(optimized_par_50_500k[[i]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_CO[[i+9]]))
+    mutate(predicted_Recrate =state_9_same_SNP_IR_para_modu_v2_rec(optimized_par_50_500k[[i]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_RCO[[i+9]]))
 }
 
 #ploting formula
@@ -526,7 +510,7 @@ Fig_SX_v2 <- annotate_figure(Fig_SX,
                              left = text_grob("Experimental recombination rate (cM/Mb)", color = "black", rot = 90, size = 18, face = "bold")) +
   theme(plot.margin = margin(0,0.5,0.5,0, "cm"), plot.background = element_rect(fill = "white", color = "white")) 
 
-ggsave("./analysis/Fig_SX_new.png", Fig_SX_v2, width = 360, height = 280, units = c("mm"))
+ggsave("./analysis/Fig_SX_new_ll.png", Fig_SX_v2, width = 360, height = 280, units = c("mm"))
 
 
 #perform op from Chr1 to Chr5 separately, and predict other chromosomes using 100-kb bins
@@ -538,10 +522,9 @@ getDoParWorkers()
 den_table_ISNP_IR_state_Ler_sep_seg_Chr_100k <- den_table_ISNP_IR_state_Ler_sep_seg[[11]] %>%
   split(.$Chr)
 
-den_table_f_all_CO_Chr_100k <- den_table_f_all_CO[[11]] %>%
+den_table_f_all_RCO_Chr_100k <- den_table_f_all_RCO[[11]] %>%
   split(.$Chr)
 
-den_table_f_all_CO_Chr_100k[[1]]
 
 test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k <-
   foreach(i=c(1:5), .packages = c("tidyverse")) %:%
@@ -550,62 +533,67 @@ test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k
       state_9_same_SNP_3_IR_seg_rob_initial_par[[j]],
       state_9_same_SNP_IR_para_modu_v1_consistent,
       data = den_table_ISNP_IR_state_Ler_sep_seg_Chr_100k[[i]],
-      data2 = den_table_f_all_CO_Chr_100k[[i]],
-      control = list(maxit=800, REPORT=1, trace=6),
+      data2 = den_table_f_all_RCO_Chr_100k[[i]],
+      control = list(fnscale=-1, maxit=800, REPORT=1, trace=6),
       method = c("L-BFGS-B"),
       #upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.9999, 0.9999, 0.9999, 0.9999, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf),
       lower = rep(10^-8, 15))
   }
 
-state_9_same_SNP_IR_para_modu_v1_consistent_rec <- function(a, data, data2) {
-  para_d <- tibble(
-    feature = c(str_c("state", c(1:9)), "SV"),
-    raw_rec = c(a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10]),
-    SNP_para1 = rep(a[11], 10),
-    SNP_para2 = rep(a[12], 10),
-    IR_para1 = rep(a[13], 10),
-    IR_para2 = rep(a[14], 10),
-    IR_para3 = rep(a[15], 10)
-  )
+
+#create the function to extract which replicate has the best result
+ll_gather_best_f <- function(data){
+  x = length(data)
+  y = length(data[[1]])
   
-  x = data %>%
-    left_join(para_d, by = c("feature")) %>%
-    #mutate(SNP_para1 = as.double(SNP_para1), SNP_para2 = as.double(SNP_para2)) %>%
-    mutate(raw_recrate_v2 = if_else(size_IR == 0, raw_rec*(1 + SNP_para1*den_ISNP_seg)*exp(-SNP_para2*den_ISNP_seg)*size/size_bin, raw_rec*(1 + SNP_para1*den_ISNP_seg)*exp(-SNP_para2*den_ISNP_seg)/(IR_para1 + IR_para2*exp(-IR_para3*size_IR/1000))*size/size_bin)) %>%
-    group_by(chr_bin) %>%
-    summarise(recrate_non_rescalling = sum(raw_recrate_v2)) %>%
-    mutate(Chr = str_sub(chr_bin, 1, 4), label = str_sub(chr_bin, 6, 20)) %>%
-    mutate(label = as.double(label)) %>%
-    arrange(Chr, label)
+  ll_list <- vector("list", length = x)
+  for (i in c(1:x)) {
+    for (j in c(1:y)) {
+      ll_list[[i]] <- append(ll_list[[i]], data[[i]][[j]]$value)
+    }
+  }
   
-  x2 <- data2 %>%
-    left_join(x, by = c("Chr", "chr_bin")) %>%
-    drop_na() %>%
+  tibble(Chr = rep(str_c("Chr", c(1:x)), each = y),
+         rep = rep(c(1:y), x),
+         ll = unlist(ll_list)) %>%
     group_by(Chr) %>%
-    mutate(pre_genetic_length = sum(recrate_non_rescalling*physical_length)) %>%
-    mutate(rescaled_model_rec_rates = recrate_non_rescalling*genetic_length/pre_genetic_length) 
-  
-  x2$rescaled_model_rec_rates
+    filter(ll == max(ll))
 }
 
+best_ll_Chr <- ll_gather_best_f(test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k)
+test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[1]][[5]]$par
 
-op_para_Chr_list <- list(
-  test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[1]][[3]]$par,
-  test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[2]][[4]]$par,
-  test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[3]][[1]]$par,
-  test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[4]][[7]]$par,
-  test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[5]][[5]]$par
-)
+#extract the information of parameters from each replicate
+op_para_Chr_list_raw <- vector("list", length = length(best_ll_Chr$Chr))
 
+for (i in seq_along(op_para_Chr_list)) {
+  for (j in seq_along(test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[1]])) {
+    op_para_Chr_list_raw[[i]][[j]] <- tibble(
+      Chr = rep(best_ll_Chr$Chr[[i]], 15),
+      rep = rep(j, 15),
+      para = test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[i]][[j]]$par
+    ) 
+  }
+}
+
+#keep the best fit of each chromosome for the following analysis
+op_para_Chr_list <- bind_rows(op_para_Chr_list_raw) %>%
+  left_join(best_ll_Chr) %>%
+  drop_na() %>%
+  mutate(Chr_light = as.double(str_sub(Chr, 4, 4))) %>%
+  split(.$Chr_light)
+
+
+#calculae R square of the prediction of the best fit
 R_square_Chr_list <- vector("list", length = length(op_para_Chr_list))
 
 for (i in seq_along(R_square_Chr_list)) {
   for (j in seq_along(R_square_Chr_list)) {
-    predicted_rec <- state_9_same_SNP_IR_para_modu_v1_consistent_rec(op_para_Chr_list[[i]], den_table_ISNP_IR_state_Ler_sep_seg_Chr_100k[[j]], den_table_f_all_CO_Chr_100k[[j]])
-    R_square_Chr_list[[i]][[j]] <- 1 - sum((den_table_f_all_CO_Chr_100k[[j]]$Recrate_Rowan - predicted_rec)^2)/sum((den_table_f_all_CO_Chr_100k[[j]]$Recrate_Rowan - mean(den_table_f_all_CO_Chr_100k[[j]]$Recrate_Rowan))^2)
+    predicted_rec <- state_9_same_SNP_IR_para_modu_v2_rec(op_para_Chr_list[[i]]$para, den_table_ISNP_IR_state_Ler_sep_seg_Chr_100k[[j]], den_table_f_all_RCO_Chr_100k[[j]])
+    R_square_Chr_list[[i]][[j]] <- 1 - sum((den_table_f_all_RCO_Chr_100k[[j]]$Recrate_Rowan - predicted_rec)^2)/sum((den_table_f_all_RCO_Chr_100k[[j]]$Recrate_Rowan - mean(den_table_f_all_RCO_Chr_100k[[j]]$Recrate_Rowan))^2)
   }
 }
-R_square_Chr_list[[5]]
+
 
 R_square_based_on_op_Chr_table <- tibble(
   Chr = str_c("Chr", c(1:5), "_predict"),
@@ -616,4 +604,6 @@ R_square_based_on_op_Chr_table <- tibble(
   Chr5_fit = round(R_square_Chr_list[[5]], 3)
 )
 
-write_delim(R_square_based_on_op_Chr_table, "./analysis/R_square_based_on_op_Chr_table_v2", delim = "\t", col_names = TRUE)
+write_delim(R_square_based_on_op_Chr_table, "./analysis/R_square_based_on_op_Chr_table_v3", delim = "\t", col_names = TRUE)
+
+
