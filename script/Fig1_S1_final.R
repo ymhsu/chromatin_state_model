@@ -1,10 +1,16 @@
-#import necessary packages
-Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "ggpmisc", "ggformula")
-lapply(Packages, library, character.only = TRUE)
+#change the directory "chromatin_state_model" as the working directory
+setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+
+#using "p_load" from the package "pacman" to install and load necessary packages
+install.packages("pacman")
+library(pacman)
+
+Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
+p_load(Packages, character.only = TRUE)
+
+#lapply(Packages, library, character.only = TRUE)
 
 ##Figure 1##
-#change the current directory as the working directory
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #create the initial bed files using different bins for producing bed files intersecting features
 Ara_Chr_label <- vector(mode = "list", length = 5)
@@ -66,39 +72,24 @@ pwalk(list(
 ),
 write_delim)
 
-#there are 9 features including, gene, TE, TSS, H3K4me1, H3K4me3, H3K9me2, H3K27me3, ATAC, DNase, their information are shown below,
- 
-#TSS
-#cat TAIR10_protein_coding_genes_bed_sorted | awk -v OFS="\t" '{if($5 == "+") print $1,$2,$2+1,"TSS",$5,$6; else print $1,$3-1,$3,"TSS",$5,$6}' > TAIR10_protein_coding_genes_TSS_bed_sorted
 
-#produce the protein-coding genes without the names of genes (4th column was deleted from gene: TAIR10_protein_coding_genes_bed_sorted_merge, the production of this file refers to Fig2_new.R)
-#cat TAIR10_protein_coding_genes_bed_sorted_merge | awk '{print$1"\t"$2"\t"$3}' > TAIR10_protein_coding_genes_bed_sorted_merge_noname
+#After creating bed files based on different bin sizes, one can create different features in bed format for producing intersection file later.
+#In Fig1, there are 9 features including, gene, TE, TSS, H3K4me1, H3K4me3, H3K9me2, H3K27me3, ATAC, DNase.
+#Below are the information about how to create these file. 
+#In the interface of RStudio, one can run the command line or shell script on the terminal which can be reached at the bottom left.
+#The directories specified in the parenthesis following the feature are the place to store these files.
 
-#TE (TAIR10_GFF3_genes_transposons.gff was downloaded from TAIR10 website, https://www.arabidopsis.org/download/index-auto.jsp?dir=%2Fdownload_files%2FGenes%2FTAIR10_genome_release%2FTAIR10_gff3)
-#cat -n TAIR10_GFF3_genes_transposons.gff | awk '{if ($1 >= 590265) print$0}' | grep "transposable_element" | awk '{print$2"\t"$5-1"\t"$6"\t""transposable_element"}' | bedtools sort > ./TAIR10_transposable_elements_sorted
-#bedtools merge -i TAIR10_transposable_elements_sorted | awk '{print$1"\t"$2"\t"$3"\t""TE"}' > TAIR10_transposable_elements_sorted_merge
+#TSS/protein-coding genes/TE
+#Open the terminal, run the shell script "genomic_features.sh" in the directory "script/" to create the necessary files of genomic features.
+#These produced files will be located in "data/Fig1/".
 
-#H3K4me1
-#GSM3674621_H3K4me1_leaf_R1.bedgraph.gz
+#H3K4me1/H3K4me3/H3K9me2/H3K27me3/ATAC/DNase 
+#Open the terminal, run the shell script "epimark_bedgraph_final.sh" in the directory "script/" to create the necessary files of epigenomic features.
+#The bedgraph files for Fig1 and SP Fig1 will be produced in "data/Fig1/epimark_data/".
+#Then, one needs to locate in "script/" to run "Fig1_9features_intersect_14bins_f.sh" to get the bed file of the intersection between features and bins. (SVs intersecting bins or features were included)
+#The intersection between Rowans' intervals is produced by "Fig1_9features_intersect_14bins_f.sh" as well.
 
-#H3K4me3
-#GSM3674620_H3K4me3_leaf_R1.bedgraph.gz
-
-#H3K9me2
-#GSM4734580_H3K9me2_leaf_R1.bedgraph.gz
-
-#H3K27me3
-#GSM3674617_H3K27me3_leaf_R1.bedgraph.gz
-
-#ATAC
-#GSM3674715_ATAC_leaf_R1.bedgraph.gz
-
-#DNase
-#GSM1289358_DNase_7d_seedling_R1.bedgraph.gz
-
-#using "Fig1_9features_intersect_14bins_f.sh" to get the bed (SVs intersecting bins or features were not removed)
-
-#read CO file and calculate recombination rate
+#read CO file and calculate recombination rate (based on Rowan's CO intervals)
 paths_den_table_RCO <-
   str_c(
     "data/Fig1/",
@@ -365,19 +356,33 @@ data_100kb_cor_feature_SV <- den_table_f_cor_SV[[11]] %>%
 
 #produce the function for calculating explained variance
 explained_var_predicted_single_feature_smaller_spar <- function(data){
-  prediction <- smooth.spline(data$den_feature, data$RecRate, spar = 1)
-  predicted_y <- predict(prediction, data$den_feature)$y
+  model <- lm(data$RecRate ~ poly(data$den_feature,4))
+  predicted_y <- predict(model, poly(data$den_feature,4))
   1-sum((data$RecRate-predicted_y)^2)/sum((data$RecRate-mean(data$RecRate))^2)
 }
 
 #produce the function for ploting figures
 Fig_1_100kb_cor_feature_func_smaller_spar <- function(data){
-  data %>% ggscatter("den_feature", "RecRate", color = "status", palette = c(pal_npg("nrc", alpha = 1)(6))[c(1,3,4)]) +
-    geom_spline(
-      aes(den_feature, RecRate),
+  #building the model for the prediction of fitted line
+  model <- lm(RecRate ~ poly(den_feature, 4), data)
+  
+  #create even distributed independent variables for the prediction
+  new_model_x <- tibble(den_feature = seq(min(data$den_feature), max(data$den_feature), length.out = 1001))
+  
+  #produce the prediction and add the prediction to a new tibble for plotting fitted line
+  predicted_y_new <- predict(model, new_model_x, 4)
+  data_preY = tibble(
+    den_feature = seq(min(data$den_feature), max(data$den_feature), length.out = 1001),
+    predicted_y = predicted_y_new$fit
+  )
+  
+  data %>% 
+    ggscatter("den_feature", "RecRate", color = "status", palette = c(pal_npg("nrc", alpha = 1)(6))[c(1,3,4)]) +
+    geom_line(
+      aes(den_feature, predicted_y),
       color = "black",
       size  = 1,
-      spar = 1
+      data = data_preY
     ) +
     facet_wrap( ~ all_feature, nrow = 1, scales = "free") +
     theme_bw() +
@@ -407,33 +412,44 @@ explained_var_vector_SV <- round(unlist(data_100kb_cor_feature_SV %>%
 
 #produce the list of 9 figures from 9 features
 isolate_feature_figure_SV <- vector("list", length(data_100kb_cor_feature_SV))
+isolate_feature_figure_SV_full_inset <- vector("list", length(data_100kb_cor_feature_SV))
+isolate_feature_figure_SV_merged <- vector("list", length(data_100kb_cor_feature_SV))
 
 for (i in seq_along(isolate_feature_figure_SV)) {
+  #define the location used for plotting the explained variance
   x_location = 0.23*(quantile(data_100kb_cor_feature_SV[[i]]$den_feature, 0.975) - quantile(data_100kb_cor_feature_SV[[i]]$den_feature, 0.025)) + quantile(data_100kb_cor_feature_SV[[i]]$den_feature, 0.025)
-  
+  #set the boundary of the main figure
   x_limits = c(quantile(data_100kb_cor_feature_SV[[i]]$den_feature, 0.025), quantile(data_100kb_cor_feature_SV[[i]]$den_feature, 0.975))
   
+  #produce the main figure
   isolate_feature_figure_SV[[i]] <- data_100kb_cor_feature_SV[[i]] %>%
     Fig_1_100kb_cor_feature_func_smaller_spar() + 
     theme(axis.title.y = element_text(color = "white"), axis.title.x = element_text(color = "white"),  legend.position = "", plot.margin = margin(0,0.5,0,0.2, "cm")) +
     geom_text(x =  x_location, y = 15, label = str_c("R^2 == ", explained_var_vector_SV[[i]]), parse = TRUE, size = 6) +
     scale_x_continuous(limits = c(x_limits[[1]], x_limits[[2]]))
+  
+  #produce the inset figure
+  isolate_feature_figure_SV_full_inset[[i]] <- data_100kb_cor_feature_SV[[i]] %>%
+    Fig_1_100kb_cor_feature_func_smaller_spar() + 
+    theme(axis.title.y = element_blank(), axis.title.x = element_blank(),  legend.position = "", strip.background = element_blank(),
+          strip.text.x = element_blank(), axis.text = element_text(size = 8))
+  
+  #combine the main part and insets
+  isolate_feature_figure_SV_merged[[i]] <- ggdraw() +
+    draw_plot(isolate_feature_figure_SV[[i]]) +
+    draw_plot(isolate_feature_figure_SV_full_inset[[i]], x = 0.6, y = .55, width = .35, height = .35)
 }
 
+#merge 9 figures as Fig1
+Fig1_test_SV <- ggarrange(isolate_feature_figure_SV_merged[[1]], isolate_feature_figure_SV_merged[[2]], isolate_feature_figure_SV_merged[[3]], 
+                          isolate_feature_figure_SV_merged[[4]], isolate_feature_figure_SV_merged[[5]], isolate_feature_figure_SV_merged[[6]],
+                          isolate_feature_figure_SV_merged[[7]], isolate_feature_figure_SV_merged[[8]], isolate_feature_figure_SV_merged[[9]], nrow = 3, ncol = 3, align = "v")
 
-#add the label of y-axis for the combined figure
-isolate_feature_figure_SV[[4]] <- isolate_feature_figure_SV[[4]] +
-  theme(axis.title.y = element_text(color = "black"))
+#add the text of x and y axis
+Fig1_test_SV_f <- annotate_figure(Fig1_test_SV, bottom = text_grob("The density of features", face = "bold", size = 18), left = text_grob("Recombination rate (cM/Mb)", rot = 90, face = "bold", size = 18)) +
+  theme(plot.margin = margin(0,0.5,0.5,0, "cm"), plot.background = element_rect(fill = "white", color = "white"))
 
-#add the label of x-axis for the combined figure
-isolate_feature_figure_SV[[8]] <- isolate_feature_figure_SV[[8]] +
-  theme(axis.title.x = element_text(color = "black"))
-
-Fig1_test_SV <- ggarrange(isolate_feature_figure_SV[[1]], isolate_feature_figure_SV[[2]], isolate_feature_figure_SV[[3]], 
-                          isolate_feature_figure_SV[[4]], isolate_feature_figure_SV[[5]], isolate_feature_figure_SV[[6]],
-                          isolate_feature_figure_SV[[7]], isolate_feature_figure_SV[[8]], isolate_feature_figure_SV[[9]], nrow = 3, ncol = 3, align = "v")
-
-ggsave("analysis/Fig1.jpeg", Fig1_test_SV, width = 400, height = 330, units = c("mm"))
+ggsave("analysis/Fig1_poly4.jpeg", Fig1_test_SV_f, width = 400, height = 330, units = c("mm"))
 
 
 ##Table S2##
@@ -456,7 +472,7 @@ Table_S2 <- tibble(
   add_500_k = round(c(summary_linear[[13]]$coefficients[,1], summary_linear[[13]]$r.squared), 2)
 )
 
-write_delim(Table_S2, "./analysis/Table_S2", delim = "\t", col_names = TRUE)
+write_delim(Table_S2, "./analysis_output/Table_S2", delim = "\t", col_names = TRUE)
 
 
 #To investigate the predictive power of the additive one and the one with interaction term
@@ -513,7 +529,7 @@ R_square_based_on_lm_Chr_table <- tibble(
   Chr5_fit = round(R_square_lm_result[[5]], 3)
 )
 
-write_delim(R_square_based_on_lm_Chr_table, "./analysis/R_square_based_on_lm_Chr_table", delim = "\t", col_names = TRUE)
+write_delim(R_square_based_on_lm_Chr_table, "./analysis_output/R_square_based_on_lm_Chr_table", delim = "\t", col_names = TRUE)
 
 
 
@@ -619,8 +635,6 @@ for (i in seq_along(R_square_lm_result_interaction)) {
   }
 }
 
-R_square_lm_interaction_Chr(den_table_f_cor_SV_Chr[[11]][[5]], summary_interaction_Chr_100k[[1]])
-
 R_square_based_on_lm_interaction_Chr_table <- tibble(
   Chr = str_c("Chr", c(1:5), "_predict"),
   Chr1_fit = round(R_square_lm_result_interaction[[1]], 3),
@@ -630,12 +644,10 @@ R_square_based_on_lm_interaction_Chr_table <- tibble(
   Chr5_fit = round(R_square_lm_result_interaction[[5]], 3)
 )
 
-write_delim(R_square_based_on_lm_interaction_Chr_table, "./analysis/R_square_based_on_lm_interaction_Chr_table", delim = "\t", col_names = TRUE)
+write_delim(R_square_based_on_lm_interaction_Chr_table, "./analysis_output/R_square_based_on_lm_interaction_Chr_table", delim = "\t", col_names = TRUE)
 
 
 ##Figure S1##
-#In order to indentify the signal of epigenetic marks in different tissue
-#we downloaded features from different tissues from ncbi or EMBL database
 #import the list of epigenetic marks
 epi_mark_intersect_file_list <- read_delim("./data/Fig1/epigenomic_mark_intersect_file_list", delim = "\t", col_names = "name") %>%
   mutate(name_v2 = str_replace(name, "den_table_100k_", "")) %>%
@@ -672,7 +684,8 @@ sum_epi_mark_related_replicates <- bind_rows(epi_mark_related_replicates) %>%
   split(.$label_n)
 
 #create the function for producing figures
-explained_var_predicted_single_feature_SP_Fig_1 <- function(data, data2){
+#function 1: create the data for producing figures
+rawdata_single_feature_SP_Fig_1 <- function(data, data2){
   data_x <- den_table_f_cor_SV[[11]] %>%
     left_join(Ara_peri_posi, by = "Chr") %>%
     mutate(status = if_else(
@@ -690,21 +703,29 @@ explained_var_predicted_single_feature_SP_Fig_1 <- function(data, data2){
     replace_na(list(name_light = data2, sum_intensity = 0)) %>%
     mutate(den_feature = sum_intensity/(end-str))
   
-  x_location = 0.23*(quantile(data_x$den_feature, 0.975) - quantile(data_x$den_feature, 0.025)) + quantile(data_x$den_feature, 0.025)
+  data_x
+}
+
+#function 2: create the raw figures (main and inset)
+rawfigure_single_feature_SP_Fig_1 <- function(data){
+  #building the model for the prediction of fitted line
+  model <- lm(RecRate ~ poly(den_feature, 4), data)
   
-  x_limits = c(quantile(data_x$den_feature, 0.025), quantile(data_x$den_feature, 0.975))
+  #create even distributed independent variables for the prediction
+  new_model_x <- tibble(den_feature = seq(min(data$den_feature), max(data$den_feature), length.out = 1001))
   
+  #produce the prediction and add the prediction to a new tibble for plotting fitted line
+  predicted_y_new <- predict(model, new_model_x, 4)
+  data_preY <- new_model_x %>%
+    mutate(predicted_y = predicted_y_new$fit)
   
-  prediction <- smooth.spline(data_x$den_feature, data_x$RecRate, spar = 1.2)
-  predicted_y <- predict(prediction, data_x$den_feature)$y
-  explained_var_vector <- round(1-sum((data_x$RecRate-predicted_y)^2)/sum((data_x$RecRate-mean(data_x$RecRate))^2), 2)
-  
-  data_x %>% ggscatter("den_feature", "RecRate", color = "status", palette = c(pal_npg("nrc", alpha = 1)(6))[c(1,3,4)]) +
-    geom_spline(
-      aes(den_feature, RecRate),
+  data %>% 
+    ggscatter("den_feature", "RecRate", color = "status", palette = c(pal_npg("nrc", alpha = 1)(6))[c(1,3,4)]) +
+    geom_line(
+      aes(den_feature, predicted_y),
       color = "black",
       size  = 1,
-      spar = 1
+      data = data_preY
     ) +
     facet_wrap( ~ name_light, nrow = 1, scales = "free") +
     theme_bw() +
@@ -723,26 +744,48 @@ explained_var_predicted_single_feature_SP_Fig_1 <- function(data, data2){
       axis.text = element_text(size = 14),
       legend.position="bottom"
     ) + 
-    theme(axis.title.y = element_text(color = "white"), axis.title.x = element_text(color = "white"),  legend.position = "", plot.margin = margin(0,0.5,0,0.5, "cm")) +
-    geom_text(x =  x_location, y = 15, label = str_c("R^2 == ", explained_var_vector), parse = TRUE, size = 6) +
-    scale_x_continuous(limits = c(x_limits[[1]], x_limits[[2]]))
+    theme(axis.title.y = element_text(color = "white"), axis.title.x = element_text(color = "white"),  legend.position = "", plot.margin = margin(0,0.5,0,0.5, "cm")) 
 }
 
 #create the list for producing separate plots of 6 epigenetic features
-SP1_fig_list <- vector("list", length(epi_mark_intersect_file_list$name_v3))
+SP1_fig_list_main <- vector("list", length(epi_mark_intersect_file_list$name_v3))
+SP1_fig_list_inset <- vector("list", length(epi_mark_intersect_file_list$name_v3))
+SP1_fig_list_merged <- vector("list", length(epi_mark_intersect_file_list$name_v3))
 
 for (i in seq_along(epi_mark_intersect_file_list$name_v3)) {
-  SP1_fig_list[[i]] <- explained_var_predicted_single_feature_SP_Fig_1(sum_epi_mark_related_replicates[[i]], epi_mark_intersect_file_list$name_v3[[i]])
+  SP1_fig_list_inset[[i]] <- rawfigure_single_feature_SP_Fig_1(rawdata_single_feature_SP_Fig_1(sum_epi_mark_related_replicates[[i]], epi_mark_intersect_file_list$name_v3[[i]])) + 
+    theme(axis.title.y = element_blank(), axis.title.x = element_blank(),  legend.position = "", strip.background = element_blank(),
+          strip.text.x = element_blank(), axis.text = element_text(size = 8))
+  
+  #build the model (same as function 1) for calculating explained variance on the main figure
+  data_x <- rawdata_single_feature_SP_Fig_1(sum_epi_mark_related_replicates[[i]], epi_mark_intersect_file_list$name_v3[[i]])
+  model <- lm(RecRate ~ poly(den_feature, 4), data_x)
+  predicted_y <- predict(model)
+  explained_var_vector <- round(1-sum((data_x$RecRate-predicted_y)^2)/sum((data_x$RecRate-mean(data_x$RecRate))^2), 2)
+  
+  #define the location used for plotting the explained variance
+  x_location = 0.23*(quantile(data_x$den_feature, 0.975) - quantile(data_x$den_feature, 0.025)) + quantile(data_x$den_feature, 0.025)
+  
+  #set the boundary of the main figure
+  x_limits = c(quantile(data_x$den_feature, 0.025), quantile(data_x$den_feature, 0.975))
+  
+  SP1_fig_list_main[[i]] <- rawfigure_single_feature_SP_Fig_1(rawdata_single_feature_SP_Fig_1(sum_epi_mark_related_replicates[[i]], epi_mark_intersect_file_list$name_v3[[i]])) +
+    geom_text(x =  x_location, y = 15, label = str_c("R^2 == ", explained_var_vector), parse = TRUE, size = 6) +
+    scale_x_continuous(limits = c(x_limits[[1]], x_limits[[2]]))
+  
+  SP1_fig_list_merged[[i]] <- ggdraw() +
+    draw_plot(SP1_fig_list_main[[i]]) +
+    draw_plot(SP1_fig_list_inset[[i]], x = 0.55, y = .55, width = .4, height = .35)
 }
 
 
 #create SP1 by combining plots (4 plots (sources) for each feature)
-SP1_f_raw_H3K4me1 <- list(SP1_fig_list[[1]], SP1_fig_list[[2]], SP1_fig_list[[3]], SP1_fig_list[[4]])
-SP1_f_raw_H3K4me3 <- list(SP1_fig_list[[5]], SP1_fig_list[[6]], SP1_fig_list[[7]], SP1_fig_list[[8]])
-SP1_f_raw_H3K9me2 <- list(SP1_fig_list[[9]], SP1_fig_list[[10]], SP1_fig_list[[11]], SP1_fig_list[[12]])
-SP1_f_raw_H3K27me3 <- list(SP1_fig_list[[13]], SP1_fig_list[[14]], SP1_fig_list[[15]], SP1_fig_list[[16]])
-SP1_f_raw_ATAC <- list(SP1_fig_list[[17]], SP1_fig_list[[18]], SP1_fig_list[[19]], SP1_fig_list[[20]])
-SP1_f_raw_DNase <- list(SP1_fig_list[[21]], SP1_fig_list[[22]], SP1_fig_list[[23]], SP1_fig_list[[24]])
+SP1_f_raw_H3K4me1 <- list(SP1_fig_list_merged[[1]], SP1_fig_list_merged[[2]], SP1_fig_list_merged[[3]], SP1_fig_list_merged[[4]])
+SP1_f_raw_H3K4me3 <- list(SP1_fig_list_merged[[5]], SP1_fig_list_merged[[6]], SP1_fig_list_merged[[7]], SP1_fig_list_merged[[8]])
+SP1_f_raw_H3K9me2 <- list(SP1_fig_list_merged[[9]], SP1_fig_list_merged[[10]], SP1_fig_list_merged[[11]], SP1_fig_list_merged[[12]])
+SP1_f_raw_H3K27me3 <- list(SP1_fig_list_merged[[13]], SP1_fig_list_merged[[14]], SP1_fig_list_merged[[15]], SP1_fig_list_merged[[16]])
+SP1_f_raw_ATAC <- list(SP1_fig_list_merged[[17]], SP1_fig_list_merged[[18]], SP1_fig_list_merged[[19]], SP1_fig_list_merged[[20]])
+SP1_f_raw_DNase <- list(SP1_fig_list_merged[[21]], SP1_fig_list_merged[[22]], SP1_fig_list_merged[[23]], SP1_fig_list_merged[[24]])
 epi_marks_labels <- c("H3K4me1", "H3K4me3", "H3K9me2", "H3K27me3", "ATAC", "DNase")
 SP1_f_raw_epi_feature <- list(SP1_f_raw_H3K4me1, SP1_f_raw_H3K4me3, SP1_f_raw_H3K9me2, SP1_f_raw_H3K27me3, SP1_f_raw_ATAC, SP1_f_raw_DNase)
 SP_Fig1_sub_lab <- c("A", "B", "C", "D", "E", "F")
@@ -758,10 +801,11 @@ for (i in seq_along(epi_marks_labels)) {
   SP_Fig1_part_epi_marks[[i]] <- annotate_figure(raw, top = text_grob(epi_marks_labels[[i]],  color = "black", face = "bold", size = 26),
                                                  bottom = text_grob("The density of features", color = "black", size = 16, face = "bold"),
                                                  left = text_grob("Recombination rate (cM/Mb)", color = "black", rot = 90, size = 16, face = "bold"),
-                                                 fig.lab = SP_Fig1_sub_lab[[i]], fig.lab.face = "bold", fig.lab.size = 16)  +
+                                                 fig.lab = SP_Fig1_sub_lab[[i]], fig.lab.face = "bold", fig.lab.size = 26)  +
     theme(plot.margin = margin(0.5,0.5,0.5,0.5, "cm"), plot.background = element_rect(fill = "white", color = "white")) 
 }
 
 SP_Fig1 <- ggarrange(SP_Fig1_part_epi_marks[[1]], SP_Fig1_part_epi_marks[[2]], SP_Fig1_part_epi_marks[[3]], SP_Fig1_part_epi_marks[[4]], SP_Fig1_part_epi_marks[[5]], SP_Fig1_part_epi_marks[[6]],nrow = 3, ncol = 2)
 
-ggsave("./analysis/SP_Fig1.jpeg", SP_Fig1, width = 480, height = 640, units = c("mm"))
+ggsave("./analysis_output/SP_Fig1_poly4_rep.jpeg", SP_Fig1, width = 540, height = 640, units = c("mm"))
+

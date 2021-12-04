@@ -7,7 +7,7 @@ p_load(Packages, character.only = TRUE)
 
 #lapply(Packages, library, character.only = TRUE)
 
-#change the directory "chromatin_state_model" as the working directory
+#change the directory "chromatin_state_model" as the working directory (the link below is an example)
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #######The analysis of Fig 2A#######
@@ -92,16 +92,7 @@ for (i in seq_along(1:2)) {
 #For flanking regions, we only focused on regions not being polluted by any genes.
 #To simply our anysis, we just extracted non-overlapping genes located in syntenic regions.
 #However, we still need to extract all protein coding genes to precisely locate the 3-kb flanking regions before removing genes in which we are not interested
-
-##recrate the bed file of protein coding genes based on "TAIR10_GFF3_genes_noTEgenes_nochromosome.gff" (From TAIR10_GFF3_genes_transposons.gff)
-#head -n 590264 TAIR10_GFF3_genes_transposons.gff | grep -vE "chromosome|ChrC|ChrM" > raw_gene_annotation_v1
-#grep "transposable_element_gene" raw_gene_annotation_v1 | awk '{print$9}' | awk '{print substr($1,4,9)}' > TE_gene_list
-#bash take_out_TE_gene.sh (to get TE_gene_info)
-#grep -vf TE_gene_info raw_gene_annotation_v1 > TAIR10_GFF3_genes_noTEgenes_nochromosome.gff
-#cat TAIR10_GFF3_genes_noTEgenes_nochromosome.gff | grep "gene" | grep "protein" | awk '{print$1"\t"$4-1"\t"$5"\t""protein_coding_gene""\t"$7"\t"substr($9, 4, 9)}' > TAIR10_protein_coding_genes_bed
-#Then use bedtools sort to sort the file: cat TAIR10_protein_coding_genes_bed | bedtools sort  > TAIR10_protein_coding_genes_bed_sorted
-#Then use bedtools merge to produce the boundary of each non-overlapping or overlapping genes: bedtools merge -i TAIR10_protein_coding_genes_bed_sorted -c 6 -o collapse -delim "|" > TAIR10_protein_coding_genes_bed_sorted_merge
-
+#Open the terminal, run the shell script "genomic_features.sh" in the directory "script/" to create the bed file of protein coding genes.
 TAIR10_protein_coding_genes_bed_sorted <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_sorted", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "gene_name"))
 TAIR10_protein_coding_genes_bed_sorted_merge <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_sorted_merge", delim = "\t", col_names = c("Chr", "str", "end", "gene_name"))
 Ara_genome <- read_delim("./data/Fig2/Ara_genome", delim = "\t", col_names = c("Chr", "chr_end"))
@@ -151,6 +142,9 @@ TAIR10_protein_coding_genes_bed_non_overlapping <- TAIR10_protein_coding_genes_b
 
 write_delim(TAIR10_protein_coding_genes_bed_non_overlapping, "./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping", delim = "\t", col_names = FALSE)
 
+#Open the terminal, run the command below in the directory "data/Fig2/" to identify protein-coding genes not overlapping SVs. 
+#bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV
+
 #import non_overlapping genes that already subtract SVs 
 TAIR10_protein_coding_genes_bed_non_overlapping_noSV <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type")) %>%
   mutate(status = "noSV")
@@ -170,21 +164,22 @@ TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_b_raw <- TAIR10_prot
   left_join(TAIR10_protein_coding_genes_noSV_intact_filter) %>%
   drop_na()
 
-#create the bed file of flanking regions and gene bodies of genes, and write this file for the following removal of SVs of flanking regions
+#create the bed file of flanking regions and gene bodies of genes for removing SVs of flanking regions later
 TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral <- bind_rows(TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact, TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_b_raw) %>%
   arrange(Chr, str)
 
 write_delim(TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral, "./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral", col_names = FALSE, delim = "\t")
 
 
-#remove SVs of flanking regions: bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral_flanking_noSV
+#Open the terminal, run the command below in the directory "data/Fig2/" to remove SVs of flanking regions 
+#bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral_flanking_noSV
 #Then, create the final integral list of syntenic genes with gene bodies and flanking regions
 
 #create the gene list of gene bodies and flanking regions with the old coordinates
 pc_gene_list <- TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral %>%
   select(gene_name, type, str_old = str, end_old = end)
 
-#load the gene list that already subtracted SV files
+#load the gene list that already subtracted SVs
 TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral_flanking_noSV <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral_flanking_noSV", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type", "status"))
 
 #flanking regions which are not broken by SVs at the two boundaries will be kept (the if_else part below)
@@ -291,7 +286,7 @@ TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f <- TAIR1
 
 write_delim(TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f, "./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f", delim = "\t", col_names = FALSE)
 
-#create the file of COs intersecting the final binned gene file
+#Open the terminal, run the command below in the directory "data/Fig2/" to create the file of COs intersecting the final binned gene file
 #bedtools intersect -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO
 
 #load the file of "TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO", and calculate sum of COs
@@ -334,7 +329,7 @@ gene_type_l_3kb_non_overlapped <- tibble(
   gene_type = c("Flanking TSS", "Flanking TSS", "gene_body", "gene_body", "Flanking TTS", "Flanking TTS")
 )
 
-#the process of producing state files with bins of genes
+#Open the terminal, run the command below in the directory "data/Fig2/" to produce state files with bins of genes
 #bedtools intersect -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f -b state_10_raw -wb | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$11}' > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_state
 gene_sum_state_3kb_non_overlapped <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_state", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type", "order", "state")) %>%
   mutate(type = if_else(type == "protein_coding_genes", type, str_sub(type, 1, 3))) %>%
@@ -381,7 +376,10 @@ Fig2_gene_n_bottom <- gene_figure_raw_3kb_non_overlapped +
   scale_y_continuous(breaks = seq(0, 6, 0.5)) 
 
 ######The analysis of Fig 2C######
-#load the list of protein coding genes and intergenic regions 
+#Open the terminal, run the command below in the directory "data/Fig2/" to create the table with all information of protein coding genes and intergenic regions
+#bedtools subtract -a Ara_genome_bed -b TAIR10_protein_coding_genes_bed_sorted | awk '{print$1"\t"$2"\t"$3"\t""IR""\t""no""\t""IR"NR}' > TAIR10_protein_coding_genes_IR_only_temp_bed
+#cat TAIR10_protein_coding_genes_bed_sorted TAIR10_protein_coding_genes_IR_only_temp_bed | bedtools sort > TAIR10_protein_coding_genes_IR_bed 
+#load the table containing protein coding genes and intergenic regions 
 TAIR10_protein_coding_genes_IR_bed <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_bed", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "ID"))
 
 #filter out IR events
@@ -392,14 +390,13 @@ TAIR10_protein_coding_genes_IR_bed_trimmed <- TAIR10_protein_coding_genes_IR_bed
   filter(type == "IR") %>%
   mutate(IR_type = if_else(pre_strand == aft_strand, "parallel", if_else(pre_strand == "+" & aft_strand == "-", "convergent", "divergent")))
 
-
-
 write_delim(TAIR10_protein_coding_genes_IR_bed_trimmed, "./data/Fig2/TAIR10_protein_coding_genes_IR_bed_trimmed", delim = "\t", col_names = FALSE)  
 
-#using bedtools intersect to subtract SV, then extracted intact IR in syntenic regions
+#Open the terminal, run the command below in the directory "data/Fig2/" to subtract SV, then extracted intact IR in syntenic regions
+#bedtools subtract -a TAIR10_protein_coding_genes_IR_bed_trimmed -b SV_raw > TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV
 #build up the list of IR event in syntenic regions and syntenic IR size for each IR
 #we also extracted IR with SV to investigate whether "spreading" occurs in SV nearby regions
-#process: bedtools subtract -a TAIR10_protein_coding_genes_IR_bed_trimmed -b SV_raw > TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV
+
 TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "ID", "pre_strand", "aft_strand", "IR_type")) %>%
   group_by(ID) %>%
   mutate(syn_IR_size = sum(end-str)) %>%
@@ -407,7 +404,7 @@ TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size <- read_delim("./da
   ungroup() %>%
   select(-ID)
 
-write_delim(TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size, "./analysis/TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size", delim = "\t", col_names = FALSE)
+write_delim(TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size, "./analysis_output/TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size", delim = "\t", col_names = FALSE)
 
 #extract IR without any SV
 TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size %>%
@@ -427,69 +424,6 @@ TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact <- TAIR10_protein_coding
   left_join(TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV) %>%
   filter(end - str == syn_size)
 
-###not used in Fig2###
-#extract IR with one SV
-TAIR10_protein_coding_genes_IR_bed_one_SV <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "ID", "pre_strand", "aft_strand", "IR_type")) %>%
-  group_by(ID) %>%
-  mutate(count = n()) %>%
-  filter(count == 2) 
-
-TAIR10_protein_coding_genes_IR_bed_one_SV %>%
-  mutate(size = end-str) %>%
-  filter(size > 1500)
-
-
-TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV <- TAIR10_protein_coding_genes_IR_bed_one_SV %>%
-  mutate(SV_str = min(end), SV_end = max(str), type_SV = "SV") %>%
-  ungroup() %>%
-  select(Chr, str = SV_str, end = SV_end, type = type_SV, strand, ID, pre_strand, aft_strand, IR_type) %>%
-  distinct() 
-
-TAIR10_protein_coding_genes_IR_bed_one_SV_2kb_flanking <- TAIR10_protein_coding_genes_IR_bed_one_SV %>%
-  mutate(new_str = end-2000, new_end = str+2000) %>%
-  mutate(new_str_v2 = if_else(str == min(str), new_str, str), new_end_v2 = if_else(end==max(end), new_end, end)) %>%
-  select(Chr, str=new_str_v2, end=new_end_v2, type, strand, ID, pre_strand, aft_strand, IR_type) %>%
-  mutate(type = "flanking_2kb")
-
-TAIR10_protein_coding_genes_IR_bed_one_SV_flk_2kb_total <- bind_rows(TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV, TAIR10_protein_coding_genes_IR_bed_one_SV_2kb_flanking) %>%
-  arrange(Chr, str)
-
-write_delim(TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact, "./data/TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact", delim = "\t", col_names = FALSE)
-write_delim(TAIR10_protein_coding_genes_IR_bed_one_SV_flk_2kb_total, "./data/TAIR10_protein_coding_genes_IR_bed_one_SV_flk_2kb_total", delim = "\t", col_names = FALSE)
-write_delim(TAIR10_protein_coding_genes_IR_bed_one_SV, "./data/TAIR10_protein_coding_genes_IR_bed_one_SV", delim = "\t", col_names = FALSE)
-write_delim(TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV, "./data/TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV", delim = "\t", col_names = FALSE)
-
-#extract 3-kb non-overlaping regions of these SV events
-TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk <- read_delim("data/TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "ID", "pre_strand", "aft_strand", "IR_type"))
-
-TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_first_tail <- TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk %>%
-  group_by(Chr) %>%
-  filter(str == min(str) | end == max(end)) %>%
-  mutate(size = end - str) %>%
-  mutate(str = if_else(str == min(str), end-3000, str), end = if_else(end == max(end), str + 3000, end)) %>%
-  select(-size)
-
-TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_body <- TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk %>%
-  group_by(Chr) %>%
-  filter(str != min(str) & end != max(end)) %>%
-  mutate(size = end-str) %>%
-  ungroup() %>%
-  mutate(end_1 = if_else(size < 6000, str + round(size/2,0), str + 3000)) %>%
-  mutate(str_2 = if_else(size < 6000, end_1, end-3000)) %>%
-  select(Chr, str_1 = str, str_2, end_1, end_2 = end, type, strand, ID, pre_strand, aft_strand, IR_type) %>%
-  gather(key = "str_label", value = str, c("str_1", "str_2")) %>%
-  gather(key = "end_label", value = end, c("end_1", "end_2")) %>%
-  mutate(str_label_n = str_sub(str_label, 5, 5), end_label_n = str_sub(end_label, 5, 5)) %>%
-  filter(str_label_n == end_label_n) %>%
-  arrange(Chr, str) %>%
-  select(Chr, str, end, type, strand, ID, pre_strand, aft_strand, IR_type)
-
-TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_3kb_nonoverlapping <- bind_rows(TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_first_tail, TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_body) %>%
-  arrange(Chr, str)
-
-write_delim(TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_3kb_nonoverlapping, "./data/TAIR10_protein_coding_genes_IR_bed_one_SV_only_SV_flk_3kb_nonoverlapping", delim = "\t", col_names = FALSE)
-###not used in Fig2###
-
 
 #extracted IR with the size at least 100 bp 
 TAIR10_protein_coding_genes_IR_bed_trimmed_100bp <- TAIR10_protein_coding_genes_IR_bed_trimmed %>%
@@ -498,7 +432,6 @@ TAIR10_protein_coding_genes_IR_bed_trimmed_100bp <- TAIR10_protein_coding_genes_
 
 
 #generate bins of IR (the function)
-
 produce_IR_100bins <- function(data) {
   posi_g  <- floor(seq(data$str, data$end, length.out = 101))
   
@@ -518,20 +451,22 @@ produce_IR_100bins <- function(data) {
 }
 
 ##combine the information of 100 bins of every IR together, then get their intersection with Rowan's intervals and 9 states (including IR with or without SVs)
-
 TAIR10_protein_coding_genes_IR_100bins_integral <- TAIR10_protein_coding_genes_IR_bed_trimmed_100bp %>%
   map(. %>% produce_IR_100bins()) %>%
-  bind_rows()
+  bind_rows() %>%
+  arrange(Chr, str)
 
 write_delim(TAIR10_protein_coding_genes_IR_100bins_integral, "./data/Fig2/TAIR10_protein_coding_genes_IR_100bins_integral", delim = "\t", col_names = FALSE)
 
-#get intersected CO info: bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b ../R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_100bins_integral_RCO
+#Open the terminal, run the command below in the directory "data/Fig2/" to get intersected CO info. 
+#bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_100bins_integral_RCO
 TAIR10_protein_coding_genes_IR_100bins_integral_RCO_sum <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_100bins_integral_RCO", delim = "\t", col_names = c("Chr", "str", "end", "IR_name", "type", "strand", "IR_type", "pre_strand", "aft_strand", "bin", "Chr_CO", "str_CO", "end_CO", "sel", "label")) %>%
   mutate(CO_n_f = (end-str)/(end_CO-str_CO)) %>%
   group_by(IR_name, bin) %>%
   summarise(sum_CO = sum(CO_n_f))
 
-#get intersected state info
+#Open the terminal, run the command below in the directory "data/Fig2/" to get intersected state info. 
+#bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b state_10_raw -wb | awk -v OFS="\t" '{print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $14}' | bedtools sort > TAIR10_protein_coding_genes_IR_100bins_integral_state
 TAIR10_protein_coding_genes_IR_100bins_integral_state_sum <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_100bins_integral_state", delim = "\t", col_names = c("Chr", "str", "end", "IR_name", "type", "strand", "IR_type", "pre_strand", "aft_strand", "bin", "state")) %>%
   group_by(IR_name, bin, state) %>%
   summarise(sum_state_bp = sum(end-str))
@@ -597,7 +532,6 @@ TAIR10_protein_coding_genes_IR_100bins_integral_state_frac_rec_pooled <- TAIR10_
 ##the first version of this figure##
 #the comparison between the fraction of 10 states and recrate in each bin
 #then we also compare the experimental recrate with theoretical recrate produced by genome-wide recrate of 10 states
-#three types
 
 #prepare CO rate data for plotting 
 IR_rec_plot_d <- TAIR10_protein_coding_genes_IR_100bins_integral %>%
@@ -634,22 +568,8 @@ IR_state_function <-  function(data) {data %>%
     scale_y_continuous(name = c("The genome fraction of chromatin states"), breaks = c(0, 0.5, 1)) + guides(fill = guide_legend(nrow = 1)) 
 }
 
-#plot three types of transcription with or without SVs
-IR_rec_3types_SV <- IR_rec_plot_d %>%
-  filter(SV_status == "with_SV") %>%
-  IR_Rec_function() +
-  facet_wrap(~IR_type)
 
-IR_state_3types_SV <- TAIR10_protein_coding_genes_IR_100bins_integral_state_frac %>%
-  filter(SV_status == "with_SV") %>%
-  IR_state_function() +
-  facet_wrap(~IR_type)
-
-IR_state_rec_3types_SV <- ggarrange(IR_state_3types_SV, IR_rec_3types_SV, ncol = 1)
-
-ggsave("./analysis/IR_state_rec_3types_SV.jpeg", IR_state_rec_3types_SV, width = 400, height = 300, units = c("mm"), dpi = 320)
-
-#plot IR based on all types of transcriptions (pooled)
+#plot the CO rate and the distribution of all IR events
 IR_figure_bottom <- IR_rec_plot_d %>%
   group_by(bin) %>%
   summarise(sum_CO = sum(sum_CO), sum_bp = sum(sum_bp)) %>%
@@ -670,15 +590,9 @@ IR_figure_top <- TAIR10_protein_coding_genes_IR_100bins_integral_state_frac %>%
   IR_state_function() +
   theme(plot.margin = margin(0,0.5,0,3, "cm"))
 
-TAIR10_protein_coding_genes_IR_100bins_integral_state_frac %>%
-  filter(SV_status == "no_SV") %>%
-  IR_state_function() +
-  facet_wrap(~IR_type)
-
-
 IR_figure <- ggarrange(IR_figure_top, IR_figure_bottom, ncol = 1, labels = c("C", ""), font.label = list(size = 36, color = "black", face = "bold"), label.x = 0.05)
 
-ggsave("./analysis/IR_figure.jpeg", IR_figure, width = 300, height = 400, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/IR_figure.jpeg", IR_figure, width = 300, height = 400, units = c("mm"), dpi = 320)
 
 
 #####merge Fig 2A/B/C ########
@@ -687,43 +601,14 @@ Fig2_test_left <- ggarrange(Fig2_2A[[1]], Fig2_2A[[2]], ncol = 1, labels = c("A"
 
 Fig2_test <- ggarrange(Fig2_test_left, Fig2_test_right, IR_figure, ncol = 3, nrow = 1, widths = c(1,1.1,1.1)) + 
   theme(plot.background = element_rect(fill="white", color = NA))
-#830/520
-ggsave("./analysis/Fig2_test_protein_coding_gene_v3.jpeg", Fig2_test, width = 640, height = 400, units = c("mm"), dpi = 320)
-#####merge Fig 2A/B/C ########
 
-##test graphical abstract##
-###produce Fig 2B (graphical abstract)###
-#Fig2B top
-Fig2_gene_n_top_gra_abs <- ggplot(gene_sum_state_3kb_non_overlapped) + geom_col(aes(x = mid_posi_bin, y = state_fraction, fill = state_m), width = 1) +
-  theme_bw() +
-  scale_fill_manual(values=c(pal_npg("nrc", alpha = 0.7)(10))) + 
-  theme(strip.text.x = element_text(colour = "black", face = "bold", size = 25), legend.text = element_text(size = 25, face = "bold"),
-        legend.title = element_blank(), axis.title.y = element_text(size = 25, face = "bold"), axis.title.x = element_text(size = 25, face = "bold"), legend.position = "bottom", 
-        axis.text = element_text(size = 25, face = "bold"), plot.margin = margin(0,0.2,0,0.2, "cm")) + scale_x_continuous(name = c(""), breaks=c(0, 30, 80, 130, 160), labels=c("-3 kb", "TSS", "gene bodies", "TTS", "3 kb")) +
-  scale_y_continuous(name = c("The genome fraction \nof chromatin states"), breaks = c(0, 0.5, 1)) + guides(fill = guide_legend(nrow = 1))
+ggsave("./analysis_output/Fig2_test_protein_coding_gene_v3.jpeg", Fig2_test, width = 640, height = 400, units = c("mm"), dpi = 320)
 
 
-#Fig2B bottom
-Fig2_gene_n_bottom_gra_abs <- gene_figure_raw_3kb_non_overlapped +
-  #geom_line(data = predicted_100kb_bins_non_overlapped, aes(mid_posi_bin, predicted_rec_f), size = 1, color = "red") + 
-  geom_line(data = predicted_bins_non_overlapped, aes(mid_posi_bin, experimental_rec_f), size = 1, color = "blue") + 
-  geom_line(data = gene_type_l_3kb_non_overlapped, aes(mid_posi_bin, Recrate, color = gene_type), size = 4) + theme_bw() + 
-  theme(strip.text.x = element_text(colour = "black", face = "bold", size = 25), legend.text = element_text(size = 25, face = "bold"),
-        legend.title = element_blank(), axis.title.y = element_text(size = 20, face = "bold"), axis.title.x = element_text(size = 25, face = "bold"), 
-        axis.text = element_text(size = 25, face = "bold"), legend.position = c(0.5, 0.9), legend.box.background = element_rect(colour = "black"), plot.margin = margin(0,0.2,0,0.2, "cm")) + 
-  scale_x_continuous(name = "", breaks=c(0, 30, 80, 130, 160), labels=c("-3 kb", "TSS", "gene bodies", "TTS", "3 kb")) +
-  scale_y_continuous(breaks = seq(0, 6, 0.5)) 
-
-test_gra_abs <- ggarrange(Fig2_gene_n_top_gra_abs, Fig2_gene_n_bottom_gra_abs, ncol = 1)
-
-ggsave("./analysis/test_gra_abs_v1.jpeg", test_gra_abs, width = 300, height = 600, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig2_gene_n_top_gra_abs.jpeg", Fig2_gene_n_top_gra_abs, width = 200, height = 160, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig2_gene_n_bottom_gra_abs.jpeg", Fig2_gene_n_bottom_gra_abs, width = 200, height = 160, units = c("mm"), dpi = 320)
-
-##test graphical abstract##
 
 ########SP figure for the chromatin state and CO rate profile in different groups of gene size####### (#SP Fig S3)
 #plot the gene figure using different quantiles of gene sizes
+#label protein coding genes with their categories of size
 gene_size_fct <- TAIR10_gene_noSV_non_overlapping_3kb_integral_temp %>%
   filter(type == "protein_coding_genes") %>%
   mutate(size = end_integral - str_integral) %>%
@@ -733,6 +618,7 @@ gene_size_fct <- TAIR10_gene_noSV_non_overlapping_3kb_integral_temp %>%
   select(gene_name, quantile_size) %>%
   mutate(quantile_size = factor(quantile_size, levels = c("genes ≤ 25%", "25% < genes ≤ 50%", "50% < genes ≤ 75%", "75% < genes ≤ 100%")))
 
+#This is to know the median and maximum size of 4 categories of genes
 TAIR10_gene_noSV_non_overlapping_3kb_integral_temp %>%
   filter(type == "protein_coding_genes") %>%
   mutate(size = end_integral - str_integral) %>%
@@ -742,6 +628,7 @@ TAIR10_gene_noSV_non_overlapping_3kb_integral_temp %>%
   group_by(quantile_size) %>%
   summarise(median_size = median(size), max_size = max(size))
 
+#create the table with bins containing the information of states and categories of gene sizes
 gene_sum_state_3kb_non_overlapped_quantile_gene_size <- 
 read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_state", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type", "order", "state")) %>%
   mutate(type = if_else(type == "protein_coding_genes", type, str_sub(type, 1, 3))) %>%
@@ -767,7 +654,6 @@ gene_size_top_state <- ggplot(gene_sum_state_3kb_non_overlapped_quantile_gene_si
   scale_y_continuous(name = c("The genome fraction of chromatin states"), breaks = c(0, 0.5, 1)) + guides(fill = guide_legend(nrow = 1)) + facet_wrap(~quantile_size, nrow = 1)
 
 
-
 #calculate the predicted CO rate for 4 types of gene sizes
 predicted_100kb_bins_non_overlapped_quantile_gene_size <- gene_sum_state_3kb_non_overlapped_quantile_gene_size %>%
   arrange(mid_posi_bin) %>%
@@ -789,7 +675,7 @@ gene_sum_CO_3kb_non_overlapped_quantile_gene_size <- TAIR10_protein_coding_genes
   mutate(Recrate = sum_CO/2182/2/sum_size*1000000*100) %>%
   mutate(mid_posi_bin = if_else(type == "TSS", (order + order - 1)/2, if_else(type == "TTS", (order + order - 1)/2 + 100 + row_n, (order + order - 1)/2 + row_n)))
 
-row_n = nrow(gene_sum_CO_3kb_non_overlapped$TSS)
+
 
 #plot CO rate of 4 types of genes
 gene_size_bottom_CO <- gene_sum_CO_3kb_non_overlapped_quantile_gene_size %>%
@@ -808,23 +694,12 @@ gene_size_bottom_CO <- gene_sum_CO_3kb_non_overlapped_quantile_gene_size %>%
 
 
 #merge state and CO rate of 4 sizes of genes
-gene_size_merged <- ggarrange(gene_size_top_state, gene_size_bottom_CO, nrow = 2)
-ggsave("./analysis/gene_size_merged.jpeg", gene_size_merged, width = 480, height = 360, units = c("mm"), dpi = 320)
-
-#create another version of Fig S3 for graphical abstract
-gene_size_bottom_CO_v2 <- gene_size_bottom_CO +
-  theme(plot.margin = margin(5,0.2,0,0.2, "cm"))
+gene_size_merged <- ggarrange(gene_size_top_state, gene_size_bottom_CO, nrow = 2, ncol = 1)
+ggsave("./analysis_output/gene_size_merged.jpeg", gene_size_merged, width = 480, height = 360, units = c("mm"), dpi = 320)
 
 
-gene_size_top_state_v2 <- gene_size_top_state +
-  theme(plot.margin = margin(0,0.2,5,0.2, "cm")) 
-
-gene_size_merged_v2 <- ggarrange(gene_size_top_state_v2, gene_size_bottom_CO_v2, nrow = 2)
-ggsave("./analysis/gene_size_merged_v2.jpeg", gene_size_merged_v2, width = 480, height = 480, units = c("mm"), dpi = 320)
-
-
-######SP figure (another version of Fig 2C with separate transcription)#######
-#categorize IR into 4 quantiles (SV_status polled)
+######SP Fig S4-S6 (IRs are classified into three categories based on the transcription direction of genes on their both sides)#######
+#categorize IRs into 4 quantiles (SV_status polled)
 IR_size_4quantiles_list <- TAIR10_protein_coding_genes_IR_bed_trimmed %>%
   mutate(IR_name = ID) %>%
   left_join(TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact_list) %>%
@@ -841,9 +716,8 @@ IR_size_4quantiles_list <- TAIR10_protein_coding_genes_IR_bed_trimmed %>%
   #summarise(median_size = median(size), count = n(), min_size = min(size), max_size = max(size))
   select(IR_name, SV_status, IR_type, quantile_size)
 
-IR_size_4quantiles_list$quantile_size
 
-#investigate the size of IR in 4 quantiles in terms of different transcription
+#investigate the size of IR in 4 quantiles in terms of different transcription categories
 IR_info <- TAIR10_protein_coding_genes_IR_bed_trimmed %>%
   mutate(IR_name = ID) %>%
   left_join(TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact_list) %>%
@@ -857,8 +731,9 @@ IR_info <- TAIR10_protein_coding_genes_IR_bed_trimmed %>%
   group_by(SV_status, IR_type, quantile_size) %>%
   summarise(median_size = median(size), count = n(), min_size = min(size), max_size = max(size)) 
 
-write_csv(IR_info, "./analysis/IR_size_info.csv", col_names = TRUE)
+write_csv(IR_info, "./analysis_output/IR_size_info.csv", col_names = TRUE)
 
+#show the info of mininum/maximum/median size, counts of each quantile of different IR categories
 TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact %>%
   group_by(IR_type) %>%
   mutate(size = end-str) %>%
@@ -869,32 +744,8 @@ TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_intact %>%
   group_by(IR_type, quantile_size) %>%
   summarise(median_size = median(size), count = n(), min_size = min(size), max_size = max(size)) 
 
-#draw the plot to compare exp/theory recrate in df quantiles in terms of different transcription
-x <- c(229, 724, 1617, 3714)  
-y <- c(0.69, 0.8, 0.94, 1.24)
 
-plot(x, y, xlim = c(0, 4000), ylim = c(0, 1.3))
-
-x_c <- c(57, 215, 572, 862) 
-y_c <- c(0.8, 0.88, 0.95, 1.13)
-
-x_p <- c(211, 550, 1155, 2789)
-
-y_p <- c(0.66, 0.81, 0.93, 1.2)
-
-d_IR <- tibble(
-  x = c(x, x_c, x_p),
-  y = c(y, y_c, y_p),
-  IR_type = c(rep(c("divergent", "convergent", "parallel"), each = 4))
-)
-
-
-d_IR %>%
-  ggplot() +
-  geom_point(aes(x, y, color = IR_type)) +
-  ylim(0, 3)
-
-#state (all IR, with or without SVs)
+#create the information of 10 states of each bin in 4 categories of IR sizes in terms of 3 IR types (all IR, with or without SVs)
 TAIR10_protein_coding_genes_IR_100bins_integral_4quantiles_state_frac <- TAIR10_protein_coding_genes_IR_100bins_integral_state %>%
   left_join(TAIR10_protein_coding_genes_IR_100bins_integral_state_sum) %>%
   replace_na(list(sum_state_bp = 0)) %>%
@@ -909,13 +760,14 @@ TAIR10_protein_coding_genes_IR_100bins_integral_4quantiles_state_frac <- TAIR10_
   mutate(state_fraction = sum_state_bp/sum_bin_bp) %>%
   mutate(mid_posi_bin = (bin + bin - 1)/2)
 
+#transform the previous table into a list based on 3 IR types
 IR_4q_state_frac_l <- TAIR10_protein_coding_genes_IR_100bins_integral_4quantiles_state_frac %>%
   #split(.$SV_status) %>%
   split(.$IR_type)
 
 
 
-#CO
+#create the information of CO rate of each bin in 4 categories of IR sizes in terms of 3 IR types
 TAIR10_protein_coding_genes_IR_100bins_integral_4quantiles_state_frac_rec <- TAIR10_protein_coding_genes_IR_100bins_integral_4quantiles_state_frac %>%
   arrange(mid_posi_bin) %>%
   left_join(experimental_rec_state) %>%
@@ -928,7 +780,7 @@ TAIR10_protein_coding_genes_IR_100bins_integral_4quantiles_state_frac_rec <- TAI
   group_by(IR_type, quantile_size) %>%
   mutate(experimental_rec_mean = sum(experimental_rec_bin*sum_bin_bp)/sum(sum_bin_bp))
 
-
+#transform the previous table into a list based on 3 IR types
 IR_4q_CO_frac_l <- TAIR10_protein_coding_genes_IR_100bins_integral %>%
   left_join(TAIR10_protein_coding_genes_IR_100bins_integral_RCO_sum) %>%
   replace_na(list(sum_CO = 0)) %>%
@@ -946,18 +798,8 @@ IR_4q_CO_frac_l <- TAIR10_protein_coding_genes_IR_100bins_integral %>%
   split(.$IR_type)
 
 
-TAIR10_protein_coding_genes_IR_100bins_integral %>%
-  left_join(TAIR10_protein_coding_genes_IR_100bins_integral_RCO_sum) %>%
-  replace_na(list(sum_CO = 0)) %>%
-  left_join(IR_size_4quantiles_list) %>%
-  group_by(SV_status, IR_type, quantile_size, bin) %>%
-  filter(SV_status == "with_SV", IR_type == "convergent", quantile_size == "q2", bin > 97) %>%
-  arrange(-bin, -sum_CO) %>%
-  mutate(sum_CO_f = sum(sum_CO), sum_bp = sum(end-str)) %>%
-  mutate(Recrate = sum_CO_f/sum_bp/2182/2*10^8, mid_posi_bin = (bin + bin - 1)/2) %>%
-  View()
-
-#make figure
+#create functions for making figures
+#the function for plotting the information of state distribution
 IR_figure_state_size_f <- function(data){  
   data %>%
     #filter(IR_type == "parallel") %>%
@@ -971,6 +813,7 @@ IR_figure_state_size_f <- function(data){
     facet_wrap(~quantile_size, nrow = 1)
 }
 
+#the function for plotting CO rate
 IR_figure_CO_size_f <- function(data) {  
   data %>%
     ggplot() +
@@ -986,9 +829,11 @@ IR_figure_CO_size_f <- function(data) {
     facet_wrap(~quantile_size, nrow = 1)
 }
 
+#create the plots for state distribution of 3 IR types
 IR_figure_state_size_l_all <- IR_4q_state_frac_l %>%
   map(. %>% IR_figure_state_size_f)
 
+#create plots for CO rate of 3 IR types
 IR_figure_CO_size_l_all <- vector("list", length = 3)
 
 for (i in seq_along(IR_figure_CO_size_l_all)) {
@@ -998,17 +843,18 @@ for (i in seq_along(IR_figure_CO_size_l_all)) {
     geom_line(aes(mid_posi_bin, experimental_rec_mean), linetype = "dashed", color = "blue")
 }
 
+#combine plots of 10-state distribution and CO rate
 IR_figure_state_CO_l_all <- list(IR_figure_state_size_l_all, IR_figure_CO_size_l_all) %>%
   pmap(ggarrange, nrow = 2)
 
-paths_IR_CO_rate_all <- str_c("./analysis/IR_all_state_CO_size_", c("convergent", "divergent", "parallel"),".jpeg")
+paths_IR_CO_rate_all <- str_c("./analysis_output/IR_all_state_CO_size_", c("convergent", "divergent", "parallel"),".jpeg")
 
 #export SP Fig S4-S6
 pwalk(list(paths_IR_CO_rate_all, IR_figure_state_CO_l_all), ggsave, width = 480, height = 360, units = c("mm"), dpi = 320)
 
 
 #Fig S2
-#using the average recombination rate of 10 states to predict CO rates, and compare them using 100-kb bins
+#use the experimental average recombination rate of 10 states to predict CO rates using 100-kb bins
 #create the initial bed files using different bins for producing bed files intersecting features
 Ara_Chr_label <- vector(mode = "list", length = 5)
 bin_size <- c(500, 1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 50000, 100000, 200000, 500000, 1000000)
@@ -1017,7 +863,7 @@ Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
 
 Ara_genome_bed <-
   read_delim(
-    "data/Fig1/Ara_genome_bed",
+    "data/Fig2/Ara_genome_bed",
     delim = "\t",
     col_names = c("Chr", "str", "end")
   )
@@ -1049,6 +895,8 @@ den_table_list <-
   bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
   split(.$size_l)
 
+write_delim(den_table_list[[11]], "./data/Fig2/den_table_100k_bed", delim = "\t", col_names = FALSE)
+
 #create the list of states for being joined by the information of sum of state 
 den_table_list_state <- bind_rows(den_table_list) %>%
   mutate(state1 = "state1", state2 = "state2", state3 = "state3", state4 = "state4", state5 = "state5", state6 = "state6", state7 = "state7", state8 = "state8", state9 = "state9", SV = "SV") %>%
@@ -1056,62 +904,72 @@ den_table_list_state <- bind_rows(den_table_list) %>%
   select(-state_repeat) %>%
   split(.$size_l)
 
-#state_10_raw_state8_m_order is the list of 10 states with the modification of state 8,
-#while encountering the 9-8-9 cases, I modified these state-8 segments into state 9.
-state_10_raw_state8_m_order <- read_delim("./data/Fig2/state_10_raw_state8_m_order", delim = "\t", col_names = c("Chr", "str", "end", "state_m", "order"))
 
-#sum_state
-paths_den_table_state_sep_seg_state8_m = str_c(
-  "./data/Fig2/",
-  "den_table_",
-  bin_name,
-  "_state_10_state8_m_intersect"
-)
+#make the intersection between 10 states and the 100-bin bed file, and import 10-state information and calculate the sum of base pairs of 10 states
+#Open the terminal, run the command below in the directory "data/Fig2/"
+#bedtools intersect -a state_10_raw -b den_table_100k_bed -wb | bedtools sort | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$7"\t"$8}' > den_table_100k_state_10_intersect
+#bedtools intersect -a den_table_100k_bed -b R_CO_final_bed -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $6, $7, $8, $9, $10}' > den_table_100k_RCO_raw_bed
 
-#calculate sum of 10 states (modified state8)
-den_table_state_sum_state8_m = vector("list", length = length(bin_name))
+#calculate the sum of base pairs of each state in 100-kb bins
+den_table_state_sum_100k <- read_delim(
+  "./data/Fig2/den_table_100k_state_10_intersect",
+  delim = "\t",
+  col_names = c("Chr", "str", "end", "state", "str_bin", "end_bin", "chr_bin")
+) %>%
+  group_by(chr_bin, state) %>%
+  summarise(sum_state_bp = sum(end-str), .groups = "drop")
 
-for (i in seq_along(bin_size)) {
-  den_table_state_sum_state8_m[[i]] <- read_delim(
-    paths_den_table_state_sep_seg_state8_m[[i]],
-    delim = "\t",
-    col_names = c("Chr", "str", "end", "state", "label", "str_bin", "end_bin", "chr_bin")
-  ) %>%
-    group_by(chr_bin, state) %>%
-    summarise(sum_state_bp = sum(end-str), .groups = "drop")
-}
-
-
-#create the fraction of 10 states in each bin
-den_table_state_f_state8_m <- vector("list", length = length(bin_size))
-
-for (i in seq_along(bin_name)) {
-  den_table_state_f_state8_m[[i]] <- den_table_list_state[[i]] %>%
-    left_join(den_table_state_sum_state8_m[[i]]) %>%
-    replace_na(list(sum_state_bp = 0)) %>%
-    mutate(den_state = sum_state_bp/(end-str)) %>%
-    select(-sum_state_bp) %>%
-    spread(key = state, value = den_state)
-}  
+#calculate the sum of COs in 100-kb bins
+den_table_RCO_sum_100k <- read_delim(
+  "./data/Fig2/den_table_100k_RCO_raw_bed",
+  delim = "\t",
+  col_names = c(
+    "Chr",
+    "str",
+    "end",
+    "chr_bin",
+    "Chr_CO",
+    "str_CO",
+    "end_CO",
+    "sel_420",
+    "CO_l"
+  )
+) %>%
+  mutate(CO_n = (end - str) / (end_CO - str_CO)) %>%
+  group_by(chr_bin) %>%
+  summarise(sum_CO = sum(CO_n))
 
 
-
-#using 10 states from "experimental_rec_state" to predict CO rate in each bin using 100-kb bins
-den_table_state_f_state8_m_pre_state_100k <- den_table_state_f_state8_m[[11]] %>%
+#create the fraction of 10 states in each bin, then use 10 states from "experimental_rec_state" to produce predicted CO rate
+#and calculate experimental CO rate of each bin
+den_table_state_f_100k_plot <- den_table_list_state[[11]] %>%
+  left_join(den_table_state_sum_100k) %>%
+  replace_na(list(sum_state_bp = 0)) %>%
+  mutate(den_state = sum_state_bp/(end-str)) %>%
+  select(-sum_state_bp) %>%
+  spread(key = state, value = den_state) %>%
   gather(key = "state", value = "state_frac", c(6:15)) %>%
   left_join(experimental_rec_state) %>%
   mutate(rec_part = state_frac*experimental_rec) %>%
-  group_by(Chr, chr_bin) %>%
-  summarise(rec_based_on_state = sum(rec_part))
+  group_by(Chr, str, end, chr_bin) %>%
+  summarise(rec_based_on_state = sum(rec_part)) %>%
+  left_join(den_table_RCO_sum_100k) %>%
+  replace_na(list(sum_CO = 0)) %>%
+  mutate(Recrate_Rowan = (sum_CO) / 2 / 2182 / (end - str) * 10 ^ 8) 
 
-test_plot <- den_table_f_all_CO[[11]] %>%
-  left_join(den_table_state_f_state8_m_pre_state_100k)
 
 #calculate explained variance of this prediction
-explained_var_test_plot <- round(1-sum((test_plot$Recrate_Rowan - test_plot$rec_based_on_state)^2)/sum((test_plot$Recrate_Rowan - mean(test_plot$Recrate_Rowan))^2),2)
+explained_var_test_plot <- round(1-sum((den_table_state_f_100k_plot$Recrate_Rowan - den_table_state_f_100k_plot$rec_based_on_state)^2)/sum((den_table_state_f_100k_plot$Recrate_Rowan - mean(den_table_state_f_100k_plot$Recrate_Rowan))^2),2)
 
 #produce Fig S2
-SP_Figure_S2_test <- test_plot %>%
+#define pericentromeric regions based on methylation levels (based on Underwood's research, https://genome.cshlp.org/content/early/2018/03/09/gr.227116.117)
+Ara_peri_posi <- tibble(
+  Chr = str_c("Chr", 1:5),
+  str_peri = c(11420001, 910001, 10390001, 1070001, 8890001),
+  end_peri = c(18270000, 7320000, 16730000, 6630000, 15550000)
+)
+
+SP_Figure_S2 <- den_table_state_f_100k_plot %>%
   left_join(Ara_peri_posi, by = "Chr") %>%
   mutate(status = if_else(
     end < str_peri |
@@ -1143,4 +1001,4 @@ SP_Figure_S2_test <- test_plot %>%
   ) + scale_y_continuous(limits =  c(0,12), breaks=seq(0, 12,2)) + geom_text(x =  1.5, y = 10, label = str_c("R^2 == ", 0.24), parse = TRUE, size = 6)
 
 
-ggsave("analysis/SP_Figure_S2.jpeg", SP_Figure_S2_test, width = 300, height = 225, units = c("mm"))
+ggsave("analysis_output/SP_Figure_S2.jpeg", SP_Figure_S2, width = 300, height = 225, units = c("mm"))
