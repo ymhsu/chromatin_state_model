@@ -8,7 +8,7 @@ p_load(Packages, character.only = TRUE)
 #lapply(Packages, library, character.only = TRUE)
 
 
-#change the directory "chromatin_state_model" as the working directory
+#change the directory "chromatin_state_model" as the working directory (the link below is an example)
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #Using all intergenic regions between protein coding genes to perform the analysis

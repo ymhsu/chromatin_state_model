@@ -60,6 +60,8 @@ SNP_tag_Ian <- tibble(
   cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
 )
 
+#Open the terminal, run the shell script "Fig4_CO_SNP_intersection.sh" in the directory "data/Fig4" to procude the decompressed bed file
+#gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
 Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", col_names = c("Chr", "str", "end", "cross_raw"), delim = "\t") %>%
   mutate(Chr = str_c("Chr", Chr)) %>%
   left_join(SNP_tag_Ian) %>%

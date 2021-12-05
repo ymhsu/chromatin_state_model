@@ -1,6 +1,6 @@
 #!/bin/bash
-# Program:
-# Bedtools intersect to take the information of 9 features including genomic/epigenomic features into the initial bed files using different bin sizes
+# Program: bedtools intersect
+# make the intersection between genomic/epigenomic features with initial different bin-size bed files
 #SBATCH --job-name=bedtools
 
 #Bedtools intersect
