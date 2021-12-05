@@ -1,4 +1,4 @@
-#change the directory "chromatin_state_model" as the working directory
+#change the directory "chromatin_state_model" as the working directory (the link below is an example)
 setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #using "p_load" from the package "pacman" to install and load necessary packages
@@ -10,7 +10,7 @@ p_load(Packages, character.only = TRUE)
 
 #lapply(Packages, library, character.only = TRUE)
 
-#this analysis is to check whether different sizes of bins will give us different optimized recrate
+#create the initial bed files using different bins for producing bed files intersecting features
 Ara_Chr_label <- vector(mode = "list", length = 5)
 bin_size <- c(500, 1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 50000, 100000, 200000, 500000, 1000000)
 bin_name <-
@@ -51,106 +51,77 @@ den_table_list <-
   bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
   split(.$size_l)
 
-path_den_table <- str_c("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/",
-                        "den_table_",
-                        bin_name,
-                        "_bed")
-
-pwalk(list(den_table_list, path_den_table), write_delim, delim = "\t", col_names = FALSE)
+write_delim(den_table_list[[11]], "./data/Fig4/den_table_100k_bed", delim = "\t", col_names = FALSE)
 
 
-#read CO file and calculate recombination rate
-paths_den_table_RCO <-
-  str_c(
-    "./data/Fig4/",
-    "den_table_",
-    bin_name,
-    "_RCO_raw_bed"
+#produce the table of SNP from 5 F2 populations from Blakewell's research
+SNP_tag_Ian <- tibble(
+  cross_raw = c(1:5),
+  cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
+)
+
+Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", col_names = c("Chr", "str", "end", "cross_raw"), delim = "\t") %>%
+  mutate(Chr = str_c("Chr", Chr)) %>%
+  left_join(SNP_tag_Ian) %>%
+  select(-cross_raw)
+
+write_delim(Ian_pop_passed_SNP_bed, "./data/Fig4/Ian_pop_passed_SNP_bed", col_names = FALSE, delim = "\t")
+
+
+#Open the terminal, run the shell script "Fig4_CO_SNP_intersection.sh" in the directory "script/" to procude the bed file for the intersection between CO/SNP and 100-kb bins.
+
+#produce the file of the sum of Rowans' COs
+den_table_100k_RCO_sum <- read_delim(
+  "./data/Fig4/den_table_100k_RCO_raw_mid_bed",
+  delim = "\t",
+  col_names = c(
+    "Chr",
+    "str",
+    "end",
+    "chr_bin"
   )
+) %>%
+  mutate(CO_n = (end - str)) %>%
+  group_by(chr_bin) %>%
+  summarise(sum_CO = sum(CO_n), .groups = "drop")
 
-#produce the file of the sum of CO (Rowan)
-den_table_CO_sum = vector("list", length = length(bin_name))
-
-for (i in seq_along(bin_name)) {
-  den_table_CO_sum[[i]] <-
-    read_delim(
-      paths_den_table_RCO[[i]],
-      delim = "\t",
-      col_names = c(
-        "Chr",
-        "str",
-        "end",
-        "chr_bin",
-        "Chr_CO",
-        "str_CO",
-        "end_CO",
-        "sel_420",
-        "CO_l"
-      )
-    ) %>%
-    mutate(CO_n = (end - str) / (end_CO - str_CO)) %>%
-    group_by(chr_bin) %>%
-    summarise(sum_CO = sum(CO_n), .groups = "drop")  
-}
-
-
-
-#produce the file of the sum of CO (Ian)
+#produce the file of the sum of Ians' COs
 cross_combination <- str_c(c("Col_Bur", "Col_Ws", "Col_Clc", "Col_Ct", "Col_Ler"), "_raw")
 
-paths_den_table_ICO_combined <-
-  str_c(
-    "./data/Fig4/",
-    "den_table_",
-    bin_name,
-    "_ICO_raw_mid_bed"
-  )
-
-den_table_ICO_sum = vector("list", length = length(bin_name))
-
-for (i in seq_along(bin_name)) {
-  den_table_ICO_sum[[i]] <-
+den_table_100k_ICO_sum <-
     read_delim(
-      paths_den_table_ICO_combined[[i]],
+      "./data/Fig4/den_table_100k_ICO_raw_mid_bed",
       delim = "\t",
       col_names = c(
         "Chr",
         "str",
         "end",
         "chr_bin",
-        "Chr_CO",
-        "str_CO",
-        "end_CO",
-        "mid_CO",
-        "size",
         "cross"
       )
     ) %>%
-    mutate(CO_n = (end - str) / (end_CO - str_CO)) %>%
-    mutate(cross = factor(.$cross, levels = cross_combination)) %>%
-    group_by(chr_bin, cross) %>%
-    summarise(sum_ICO = sum(CO_n), .groups = "drop") %>%
-    split(.$cross)
-}
-den_table_ICO_sum[[11]]
-den_table_f_all_CO = vector("list", length(bin_name))
+  mutate(CO_n = (end - str)) %>%
+  mutate(cross = factor(.$cross, levels = cross_combination)) %>%
+  group_by(chr_bin, cross) %>%
+  summarise(sum_ICO = sum(CO_n), .groups = "drop") %>%
+  split(.$cross)
 
-for (i in seq_along(bin_name)) {
-  den_table_f_all_CO[[i]] <- den_table_list[[i]] %>%
-    left_join(den_table_CO_sum[[i]]) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Bur_raw) %>%
+#calculate CO rate from 6 populations (5 are from Blackwell's research, and 1 is from Rowan's data)
+den_table_100k_f_all_CO <- den_table_list[[11]] %>%
+    left_join(den_table_100k_RCO_sum) %>%
+    left_join(den_table_100k_ICO_sum$Col_Bur_raw) %>%
     mutate(sum_ICO_Bur = sum_ICO) %>%
     select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Ct_raw) %>%
+    left_join(den_table_100k_ICO_sum$Col_Ct_raw) %>%
     mutate(sum_ICO_Ct = sum_ICO) %>%
     select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Ler_raw) %>%
+    left_join(den_table_100k_ICO_sum$Col_Ler_raw) %>%
     mutate(sum_ICO_Ler = sum_ICO) %>%
     select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Ws_raw) %>%
+    left_join(den_table_100k_ICO_sum$Col_Ws_raw) %>%
     mutate(sum_ICO_Ws = sum_ICO) %>%
     select(-cross, -sum_ICO) %>%
-    left_join(den_table_ICO_sum[[i]]$Col_Clc_raw) %>%
+    left_join(den_table_100k_ICO_sum$Col_Clc_raw) %>%
     mutate(sum_ICO_Clc = sum_ICO) %>%
     select(-cross, -sum_ICO) %>%
     replace_na(list(sum_ICO_Ler = 0, sum_ICO_Bur = 0, sum_ICO_Ws = 0, sum_ICO_Ct = 0, sum_ICO_Clc = 0)) %>%
@@ -170,89 +141,54 @@ for (i in seq_along(bin_name)) {
     mutate(var_rec_Ian = (var_rec_Clc+var_rec_Ct+var_rec_Ws+var_rec_Bur)/16) %>%
     mutate(var_rec_df_Rowan_Ian = var_rec_Rowan+var_rec_Ian) %>%
     mutate(sd_rec_df_Rowan_Ian = sqrt(var_rec_df_Rowan_Ian))
-}
 
-#To make a table with ICO
-den_table_f_CO_Ian = vector("list", length(bin_name))
 
-for (i in seq_along(bin_name)) {
-  den_table_f_CO_Ian[[i]] <- den_table_f_all_CO[[i]] %>%
+#transform the previous table with CO information into another format for the following analysis
+den_table_100k_f_ICO <- den_table_100k_f_all_CO %>%
     select(Chr, str, end, chr_bin, Recrate_Ler_Rowan = Recrate_Rowan, Recrate_Ler, Recrate_Clc, Recrate_Ct, Recrate_Bur, Recrate_Ws, Recrate_I_equal) %>%
     gather(key = "cross", value = "Recrate", c("Recrate_Ler_Rowan","Recrate_Ler", "Recrate_Clc", "Recrate_Ct", "Recrate_Bur", "Recrate_Ws")) %>%
     mutate(cross = str_replace(cross, "Recrate", "Col")) %>%
     mutate(source = if_else(cross == "Col_Ler_Rowan", "Rowan", "Ian")) %>%
     mutate(cross = if_else(cross == "Col_Ler_Rowan", "Col_Ler", cross))
-}
+
+#calculate the sum of SNP of 5 F2 populations in 100-kb bins
+den_table_100k_ISNP_sum <- read_delim(
+  "./data/Fig4/den_table_100k_ISNP_intersect",
+  delim = "\t",
+  col_names = c("chr_bin", "SNP_type")
+) %>%
+  group_by(chr_bin, SNP_type) %>%
+  summarise(sum_SNP = n(), .groups = "drop") %>%
+  mutate(SNP_type = str_replace(SNP_type, "SNP_", "")) %>%
+  select(chr_bin, cross = SNP_type, sum_SNP)
 
 
-paths_den_table_ISNP_state <-
-  str_c(
-    "./data/Fig4/",
-    "den_table_",
-    bin_name,
-    "_state_10_ISNP_intersect"
-  )
-
-paths_den_table_ISNP_s_state <-
-  str_c(
-    "./data/Fig4/",
-    "den_table_",
-    bin_name,
-    "_state_10_ISNP_s_intersect"
-  )
-
-den_table_ISNP_sum = vector(mode = "list", length = length(bin_name))
-den_table_ISNP_s_sum = vector(mode = "list", length = length(bin_name))
-
-for (size in seq_along(bin_name)) {
-  den_table_ISNP_sum[[size]] <- read_delim(
-    paths_den_table_ISNP_state[[size]],
-    delim = "\t",
-    col_names = c("Chr", "str", "end", "feature", "label", "str_bin", "end_bin", "chr_bin", "SNP_type")
-  ) %>%
-    group_by(chr_bin, SNP_type) %>%
-    summarise(sum_SNP = n()) %>%
-    mutate(SNP_type = str_replace(SNP_type, "SNP_", "")) %>%
-    select(chr_bin, cross = SNP_type, sum_SNP)
-  
-  den_table_ISNP_s_sum[[size]] <- read_delim(
-    paths_den_table_ISNP_s_state[[size]],
-    delim = "\t",
-    col_names = c("Chr", "str", "end", "feature", "label", "str_bin", "end_bin", "chr_bin", "SNP_type")
-  ) %>%
-    group_by(chr_bin, SNP_type) %>%
-    summarise(sum_SNP_s = n()) %>%
-    mutate(SNP_type = str_replace(SNP_type, "SNP_", ""))%>%
-    select(chr_bin, cross = SNP_type, sum_SNP_s)
-}
-
-
-den_table_f_CO_SNP_Ian_100kb <- den_table_f_CO_Ian[[11]] %>%
-  left_join(den_table_ISNP_sum[[11]]) %>%
-  left_join(den_table_ISNP_s_sum[[11]]) %>%
-  replace_na(list(sum_SNP = 0, sum_SNP_s = 0)) %>%
-  mutate(den_SNP_bin = 1000*sum_SNP/(end - str), den_SNP_s_bin = 1000*sum_SNP_s/(end-str)) %>%
+#create the table with CO rate and SNP density of the corresponding F2 population in 100-kb bins
+den_table_100kb_f_ICO_ISNP <- den_table_100k_f_ICO %>%
+  left_join(den_table_100k_ISNP_sum) %>%
+  replace_na(list(sum_SNP = 0)) %>%
+  mutate(den_SNP_bin = 1000*sum_SNP/(end - str)) %>%
   mutate(diff_Recrate = Recrate - Recrate_I_equal) %>%
   ungroup() %>%
   mutate(cross_f = str_c(cross, "_", source)) %>%
   split(.$cross_f)
 
 
-#The result obviously showed that both SNP dataset sources showed the similar quadratic effect in the changing CO rate
-
+#define the centromeric regions of Arabidopsis
 Ara_cen_posi <- tibble(
   Chr = str_c("Chr", 1:5),
   str_cen = c(13920001, 2950001, 12680001, 3390001, 10950001),
   end_cen = c(15970000, 4750000, 14750000, 4820000, 13240000)
 )
-#the masked regions are the Col genetic background in Clc 
+
+#the masked regions are the Col genetic background in Clc (part of regions in Chr2 and Chr4)
 masked_region <- tibble(
   Chr = c("Chr2", "Chr2", "Chr4"),
   masked_str = c(7000000, 16500000, 12500000),
   masked_end = c(10000000, 18500000, 18500000)
 )
 
-den_table_f_CO_SNP_Ian_100kb_combined_masked_region <- bind_rows(den_table_f_CO_SNP_Ian_100kb) %>%
+den_table_100kb_f_ICO_ISNP_combined_masked_region <- bind_rows(den_table_100kb_f_ICO_ISNP) %>%
   left_join(masked_region) %>%
   drop_na() %>%
   mutate(overlapped_masked = if_else(end <= masked_str | str >= masked_end, "no", "yes")) %>%
@@ -263,11 +199,11 @@ den_table_f_CO_SNP_Ian_100kb_combined_masked_region <- bind_rows(den_table_f_CO_
   mutate(overlapped_masked = if_else(sum_overlapped_masked_value != 0, "yes", "no")) %>%
   select(Chr, str, end, chr_bin, overlapped_masked)
 
-#
+#create the table for the following optimization by maximizing log likelihood
 Ian_pop_num <- tibble(cross_f = c(str_c(c("Col_Bur", "Col_Ler", "Col_Ws", "Col_Ct", "Col_Clc"),"_Ian"), "Col_Ler_Rowan"),
                       pop_n = c(180, 245, 188, 305, 189, 2182))
 
-den_table_f_CO_SNP_Ian_100kb_combined <- bind_rows(den_table_f_CO_SNP_Ian_100kb) %>%
+den_table_100kb_f_ICO_ISNP_combined <- bind_rows(den_table_100kb_f_ICO_ISNP) %>%
   left_join(Ian_pop_num) %>%
   mutate(size_bin = (end-str)) %>%
   left_join(den_table_f_CO_SNP_Ian_100kb_combined_masked_region) %>%
@@ -278,10 +214,9 @@ den_table_f_CO_SNP_Ian_100kb_combined <- bind_rows(den_table_f_CO_SNP_Ian_100kb)
   ungroup()
 
 
-den_table_f_CO_SNP_Ian_100kb_combined_list <- den_table_f_CO_SNP_Ian_100kb_combined %>%
+den_table_100kb_f_ICO_ISNP_combined_list <- den_table_100kb_f_ICO_ISNP_combined %>%
   split(.$cross_f) 
 
-names(den_table_f_CO_SNP_Ian_100kb_combined_noCO_removed_list)
 
 #create the function for producing the log likelihood using 3 parameters for SNP effect
 SNP_effect_ex_f <- function(a, data){
@@ -304,7 +239,7 @@ op_SNP_effect_ex <-
     optim(
       c(1, 0.1, 0.02),
       SNP_effect_ex_f,
-      data = den_table_f_CO_SNP_Ian_100kb_combined_list[[j]],
+      data = den_table_100kb_f_ICO_ISNP_combined_list[[j]],
       control = list(fnscale=-1, maxit=800, REPORT=1, trace=6),
       method = c("L-BFGS-B"),
       #upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.9999, 0.9999, 0.9999, 0.9999, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf),
@@ -329,7 +264,7 @@ op_SNP_effect_H0 <-
     optim(
       c(1, 0.02),
       SNP_effect_H0_f,
-      data = den_table_f_CO_SNP_Ian_100kb_combined_list[[j]],
+      data = den_table_100kb_f_ICO_ISNP_combined_list[[j]],
       control = list(fnscale=-1, maxit=800, REPORT=1, trace=6),
       method = c("L-BFGS-B"),
       #upper = c(Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf, 0.9999, 0.9999, 0.9999, 0.9999, Inf, Inf, Inf, Inf, Inf, Inf, Inf, Inf),
@@ -354,7 +289,7 @@ for (i in seq_along(ll_test_result)) {
     para_type = c("intercept", "linear", "ex"),
     para = op_SNP_effect_ex[[i]]$par) %>%
     spread(key = para_type, value = para) %>%
-    mutate(cross_f = names(den_table_f_CO_SNP_Ian_100kb_combined_list)[[i]], 
+    mutate(cross_f = names(den_table_100kb_f_ICO_ISNP_combined_list)[[i]], 
            p_value = if_else(substr(p_value_ll_test[[i]], 2, 2) == ".", as.character(p_value_ll_test[[i]]), str_c(str_sub(p_value_ll_test[[i]], 1, 1), ".0", str_sub(p_value_ll_test[[i]], 2, nchar(p_value_ll_test[[i]]))))) 
   
 }
@@ -373,21 +308,21 @@ SNP_ll_model_f <- tibble(den_SNP_bin = rep(seq(0,25,0.5),6),
   split(.$cross_f)
 
 #create the table for the raw scatterplot of 6 pops
-den_table_f_CO_SNP_Ian_100kb_combined_list_f <- bind_rows(den_table_f_CO_SNP_Ian_100kb_combined_list) %>%
+den_table_100kb_f_ICO_ISNP_combined_list_f <- bind_rows(den_table_100kb_f_ICO_ISNP_combined_list) %>%
   mutate(cross_f = str_replace(cross_f, "_Rowan", " (Rowan et al.)")) %>%
   mutate(cross_f = str_replace(cross_f, "_Ian", " (Blackwell et al.)")) %>%
   mutate(cross_f = factor(cross_f, levels = c("Col_Ler (Rowan et al.)", str_c("Col_", c("Ler", "Bur", "Clc", "Ws", "Ct"), " (Blackwell et al.)")))) %>%
   split(.$cross_f)
 
 #create Fig4
-Fig4_top_ll_raw = vector("list", length = length(den_table_f_CO_SNP_Ian_100kb_combined_list_f))
+Fig4_top_ll_raw = vector("list", length = length(den_table_100kb_f_ICO_ISNP_combined_list_f))
 
 for (i in seq_along(Fig4_top_ll_raw)) {
   #set the location for p-value from likelihood ratio test
-  x_location_Fig4 = 0.7*(max(den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]]$end)-min(den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]]$str))/10^6
-  y_location_Fig4 = 0.8*(max(den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]]$Recrate) %/% 1 + 1)
+  x_location_Fig4 = 0.7*(max(den_table_100kb_f_ICO_ISNP_combined_list_f[[i]]$end)-min(den_table_100kb_f_ICO_ISNP_combined_list_f[[i]]$str))/10^6
+  y_location_Fig4 = 0.8*(max(den_table_100kb_f_ICO_ISNP_combined_list_f[[i]]$Recrate) %/% 1 + 1)
   
-  Fig4_top_ll_raw[[i]] <- den_table_f_CO_SNP_Ian_100kb_combined_list_f[[i]] %>%
+  Fig4_top_ll_raw[[i]] <- den_table_100kb_f_ICO_ISNP_combined_list_f[[i]] %>%
     ggplot() +
     geom_point(aes(den_SNP_bin, Recrate)) +
     geom_line(aes(den_SNP_bin, fit_final), color = "red", data = SNP_ll_model_f[[i]]) +
@@ -408,10 +343,11 @@ Fig4_top_ll_merged <- ggarrange(Fig4_top_ll_raw[[1]], Fig4_top_ll_raw[[2]], Fig4
 Fig4_top_ll_merged_f <- annotate_figure(Fig4_top_ll_merged, bottom = text_grob("The density of SNPs (counts/kb)", face = "bold", size = 18), left = text_grob("Recombination rate (cM/Mb)", rot = 90, face = "bold", size = 18)) +
   theme(plot.margin = margin(0,0.5,0.5,0, "cm"), plot.background = element_rect(fill = "white", color = "white")) 
 
-ggsave("./analysis/Fig4_top_ll_merged_f.jpeg", Fig4_top_ll_merged_f, width = 330, height = 200, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig4_top_ll_merged_f.jpeg", Fig4_top_ll_merged_f, width = 330, height = 200, units = c("mm"), dpi = 320)
 
-
-ISNP_total <- den_table_f_CO_SNP_Ian_100kb_combined %>%
+###reshuffling test for SP figure S7###
+#prepare the table with the SNP density of 5 pops
+ISNP_total <- den_table_100kb_f_ICO_ISNP_combined %>%
   select(chr_bin, cross, den_SNP_bin, cross_f) %>%
   filter(cross_f != "Col_Ler_Rowan") %>%
   select(-cross_f) %>%
@@ -492,8 +428,8 @@ sum_chi_square_SNP_effect_first_q_50 <- function(a, data1, data2){
 }
 
 
-#only used 5 pops of Ian for the optimization (events with larger 50 % of SNP density are removed)
-den_table_f_CO_SNP_Ian_100kb_combined_v2 <- den_table_f_CO_SNP_Ian_100kb_combined %>%
+#only used 5 pops of Ian for the optimization (bins with the SNP density larger than the 50th percentile are removed)
+den_table_100kb_f_ICO_ISNP_combined_v2 <- den_table_100kb_f_ICO_ISNP_combined %>%
   filter(cross_f != "Col_Ler_Rowan") %>%
   filter(quantile_den_SNP == 1)
 
@@ -522,14 +458,14 @@ ref_SNP_effect_ex_v2_first_50_q <- function(a, data){
 op_ISNP_effect_ex_v4_first_50_q <- optim(
   rep(1,2),
   ref_SNP_effect_ex_v2_first_50_q,
-  data = den_table_f_CO_SNP_Ian_100kb_combined_v2,
+  data = den_table_100kb_f_ICO_ISNP_combined_v2,
   control = list(maxit=800, REPORT=1, trace=6),
   method = c("L-BFGS-B"),
   lower = rep(10^-10, 2)
 )
 
 
-#the optimization for 1024 combinations of shuffling SNP density (the first 50% quantile)
+#the optimization for 1024 combinations of shuffling SNP density (the 50th percentile)
 #exponential
 registerDoParallel(cores = 8)
 getDoParWorkers()
@@ -540,23 +476,13 @@ op_sum_chi_square_SNP_effect_shffuling_first_50q_threads_v2 <-
     optim(
       c(1, 1),
       sum_chi_square_SNP_effect_first_q_50,
-      data1 = den_table_f_CO_SNP_Ian_100kb_combined_v2,
+      data1 = den_table_100kb_f_ICO_ISNP_combined_v2,
       data2 = shuffling_cross_combn_list[[i]][[j]],
       control = list(maxit=800, REPORT=1, trace=6),
       method = c("L-BFGS-B"),
       lower = rep(10^-10, 2)
     )
   }
-
-system.time(optim(
-  c(1, 1),
-  sum_chi_square_SNP_effect_first_q_50,
-  data1 = den_table_f_CO_SNP_Ian_100kb_combined_v2,
-  data2 = shuffling_cross_combn_list[[1]][[1]],
-  control = list(maxit=800, REPORT=1, trace=6),
-  method = c("L-BFGS-B"),
-  lower = rep(10^-10, 2)
-))
 
 #check whether upper limit can give us different result
 op_sum_chi_square_SNP_effect_shffuling_first_50q_threads_v3 <- 
@@ -565,7 +491,7 @@ op_sum_chi_square_SNP_effect_shffuling_first_50q_threads_v3 <-
     optim(
       c(10^-9, 10^-9),
       sum_chi_square_SNP_effect_first_q_50,
-      data1 = den_table_f_CO_SNP_Ian_100kb_combined_v2,
+      data1 = den_table_100kb_f_ICO_ISNP_combined_v2,
       data2 = shuffling_cross_combn_list[[i]][[j]],
       control = list(maxit=800, REPORT=1, trace=6),
       method = c("L-BFGS-B"),
@@ -590,9 +516,11 @@ for (i in seq_along(sum_chi_square_list_first_50q_v2)) {
   }
 }
 
+#create and store the table with the optimization result
 sum_chi_square_list_first_50q_base_r_v2_t <- bind_rows(sum_chi_square_list_first_50q_v2)
-write_delim(sum_chi_square_list_first_50q_base_r_v2_t, "analysis/sum_chi_square_list_first_50q_base_r_mid_CO_t", delim = "\t", col_names = TRUE)
+write_delim(sum_chi_square_list_first_50q_base_r_v2_t, "analysis_output/sum_chi_square_list_first_50q_base_r_mid_CO_t", delim = "\t", col_names = TRUE)
 
+#create the function for producing SP figure S7
 sum_chi_square_fg <- function(data1, data2){
   x <- bind_rows(data1) %>%
     mutate(label = seq(1:n())) %>%
@@ -619,124 +547,11 @@ sum_chi_square_fg <- function(data1, data2){
   x
 }
 
-#produce the bottom of Fig 4
-Fig4_bottom <- sum_chi_square_fg(sum_chi_square_list_first_50q_base_r_v2_t, op_ISNP_effect_ex_v4_first_50_q) +
+#create SP figure S7
+SP_FigS7 <- sum_chi_square_fg(sum_chi_square_list_first_50q_base_r_v2_t, op_ISNP_effect_ex_v4_first_50_q) +
   theme(strip.text.x = element_text(colour = "black", face = "bold", size = 18), legend.text = element_text(size = 12, face = "bold"),
         legend.title = element_blank(), axis.title.y = element_text(size = 18, face = "bold"), axis.title.x = element_text(size = 18, face = "bold"), 
         axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18), axis.text.x = element_text(size = 16, face = "bold"))
 
 
-
-
-Fig4_f <- ggarrange(Fig4_top, Fig4_bottom, nrow = 2)
-
-ggsave("./analysis/Fig4_final.jpeg", Fig4_f, width = 330, height = 300, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig4_bottom_new_mid_RCO.jpeg", Fig4_bottom, width = 330, height = 200, units = c("mm"), dpi = 320)
-
-#SNP effect in the segments of states
-#----------------------------------------------------------------------------------------------------#
-state_10_raw_order_new_final <- read_delim("./data/Fig4/state_10_raw_order_new_final", delim = "\t", col_names = c("Chr", "str", "end", "state", "label")) 
-
-state_10_raw_order_new_final_sum_SNP <- read_delim("./data/Fig4/state_10_raw_order_new_final_ISNP_Col_Ler", delim = "\t", col_names = c("Chr", "str", "end", "state", "label")) %>%
-  group_by(label) %>%
-  summarise(sum_SNP = n())
-
-state_10_raw_order_new_final_sum_CO <- read_delim("./data/state_10_raw_order_new_final_RCO", delim = "\t", col_names = c("Chr", "str", "end", "state", "label", "Chr_CO", "str_CO", "end_CO", "sel_420", "CO_l")) %>%
-  mutate(CO_n = (end-str)/(end_CO-str_CO)) %>%
-  group_by(label) %>%
-  summarise(sum_CO = sum(CO_n))
-
-
-library(ggformula)
-
-
-
-
-scatterplot_state_pooled <- state_10_raw_order_new_final %>%
-  left_join(state_10_raw_order_new_final_sum_SNP) %>%
-  left_join(state_10_raw_order_new_final_sum_CO) %>%
-  replace_na(list(sum_SNP = 0, sum_CO = 0)) %>%
-  mutate(den_SNP_kb = sum_SNP/(end-str)*1000, CO_rate = sum_CO/(end-str)/2182/2*10^8) %>%
-  mutate(state = if_else(state == "state1" | state == "state3" | state == "state6" | state == "state7", "state1367", if_else(state == "state2" | state == "state4" | state == "state5", "state245", state))) %>%
-  filter(state != "SV" & state != "state9")
-
-scatterplot_state_pooled_l <- scatterplot_state_pooled %>%
-  split(.$state)
-
-scatterplot_state_pooled_l$state8
-
-nls_scatterplot_state_pooled <- vector("list", length = length(seq_along(scatterplot_state_pooled_l)))
-
-for (i in seq_along(nls_scatterplot_state_pooled)) {
-  nls_scatterplot_state_pooled[[i]] <- summary(nls(
-    CO_rate ~ (intercept+linear*den_SNP_kb)*exp(-ex*den_SNP_kb),
-    data = scatterplot_state_pooled_l[[i]],
-    start = list(intercept = 0, linear = 0.1, ex = 0.02)))
-}
-
-nls_state_model_estimate_SNP <- bind_rows(nls_scatterplot_state_pooled[[1]]$coefficients[,1], nls_scatterplot_state_pooled[[2]]$coefficients[,1], nls_scatterplot_state_pooled[[3]]$coefficients[,1]) %>%
-  mutate(state = c("state1367", "state245", "state8")) 
-
-
-nls_state_model_f_SNP <- tibble(den_SNP_kb = rep(seq(0,20,0.5),3),
-                                state = rep(c("state1367", "state245", "state8"), each = 41)) %>%
-  left_join(nls_state_model_estimate_SNP) %>%
-  mutate(fit_final = (intercept+linear*den_SNP_kb)*exp(-ex*den_SNP_kb)) %>%
-  split(.$state)
-
-state8_scatter_SNP_CO <- scatterplot_state_pooled %>%
-  #filter(den_SNP_kb != 0) %>%
-  filter(state == "state8") %>%
-  filter(den_SNP_kb <= 8.89) %>%
-  ggplot() +
-  geom_point(aes(den_SNP_kb, CO_rate)) +
-  geom_line(aes(den_SNP_kb, fit_final), color = "red", data = nls_state_model_f_SNP$state8) +
-  xlim(0, 9)+
-  ylim(0, 10)+
-  facet_wrap(~state, scales = "free", nrow = 5) +
-  theme(strip.text.x = element_text(colour = "black", face = "bold", size = 18), legend.text = element_text(size = 12, face = "bold"),
-        legend.title = element_blank(), axis.title.y = element_text(size = 18, face = "bold"), axis.title.x = element_text(size = 18, face = "bold"), panel.spacing.x = unit(0,"line"), 
-        axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18), axis.text.x = element_text(size = 18, hjust = 0.5, vjust = 1, face = "bold")) +
-  xlab("The SNP density (counts/kb)") +
-  ylab("Recombination rate (cM/Mb)")
-
-
-state1367_scatter_SNP_CO <- scatterplot_state_pooled %>%
-  #filter(den_SNP_kb != 0) %>%
-  filter(state == "state1367") %>%
-  filter(den_SNP_kb <= 1.09) %>%
-  ggplot() +
-  geom_point(aes(den_SNP_kb, CO_rate)) +
-  geom_line(aes(den_SNP_kb, fit_final), color = "red", data = nls_state_model_f_SNP$state1367) +
-  xlim(0, 1.5)+
-  ylim(0, 10)+
-  facet_wrap(~state, scales = "free", nrow = 5)+
-  theme(strip.text.x = element_text(colour = "black", face = "bold", size = 18), legend.text = element_text(size = 12, face = "bold"),
-        legend.title = element_blank(), axis.title.y = element_text(size = 18, face = "bold"), axis.title.x = element_text(size = 18, face = "bold"), panel.spacing.x = unit(0,"line"), 
-        axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18), axis.text.x = element_text(size = 18, hjust = 0.5, vjust = 1, face = "bold")) +
-  xlab("The SNP density (counts/kb)") +
-  ylab("Recombination rate (cM/Mb)")
-
-state245_scatter_SNP_CO <- scatterplot_state_pooled %>%
-  #filter(den_SNP_kb != 0) %>%
-  filter(state == "state245") %>%
-  filter(den_SNP_kb <= 2.46) %>%
-  ggplot() +
-  geom_point(aes(den_SNP_kb, CO_rate)) +
-  geom_line(aes(den_SNP_kb, fit_final), color = "red", data = nls_state_model_f_SNP$state245) +
-  xlim(0, 3)+
-  ylim(0, 10)+
-  facet_wrap(~state, scales = "free", nrow = 5) +
-  theme(strip.text.x = element_text(colour = "black", face = "bold", size = 18), legend.text = element_text(size = 12, face = "bold"),
-        legend.title = element_blank(), axis.title.y = element_text(size = 18, face = "bold"), axis.title.x = element_text(size = 18, face = "bold"), panel.spacing.x = unit(0,"line"), 
-        axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18), axis.text.x = element_text(size = 18, hjust = 0.5, vjust = 1, face = "bold")) +
-  xlab("The SNP density (counts/kb)") +
-  ylab("Recombination rate (cM/Mb)")
-
-scatterplot_state_pooled %>%
-  #filter(den_SNP_kb != 0) %>%
-  group_by(state) %>%
-  summarise(SNP_q50 = quantile(den_SNP_kb, 0.5))
-
-scatterplot_state_pooled_SNP_fitted <- ggarrange(state8_scatter_SNP_CO, state1367_scatter_SNP_CO, state245_scatter_SNP_CO, ncol = 3)
-ggsave("./analysis/scatterplot_state_pooled_SNP_fitted.jpeg", scatterplot_state_pooled_SNP_fitted, width = 500, height = 250, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/SP_FigS7.jpeg", SP_FigS7, width = 330, height = 200, units = c("mm"), dpi = 320)
