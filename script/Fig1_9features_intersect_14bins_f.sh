@@ -27,9 +27,6 @@ bedtools intersect -a ../data/Fig1/TAIR10_protein_coding_genes_TSS_bed_sorted -b
 bedtools intersect -a ../data/Fig1/TAIR10_transposable_elements_sorted_merge -b ../data/Fig1/den_table_${bin}_bed -wb | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$8}' > ../data/Fig1/den_table_${bin}_TE_SV_intersect
 bedtools intersect -a ../data/Fig1/epimark_data/GSM3674715_ATAC_leaf_R1.bedgraph.gz -b ../data/Fig1/den_table_${bin}_bed -wb | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$8}' > ../data/Fig1/den_table_${bin}_ATAC_SV_intersect
 
-#used for testing SNP effect
-bedtools intersect -a ../data/Fig5/den_table_100k_bed -b ../data/Fig4/Ian_CO_mid_5dataset -wb | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$9}' > ../data/Fig4/den_table_${bin}_ICO_raw_mid_bed
-
 done
 
 for i in $(cat ../data/Fig1/epimark_data/SP_Fig1_intersection_list)
