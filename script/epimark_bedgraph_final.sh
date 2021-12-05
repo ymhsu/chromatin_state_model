@@ -77,7 +77,7 @@ for i in 11 13 14
 do
 
 echo ${i}
-unzip ../data/Fig1/epimark_data/E-MTAB-7370.processed.${i}.zip
+unzip ../data/Fig1/epimark_data/E-MTAB-7370.processed.${i}.zip -d ../data/Fig1/epimark_data
 rm ../data/Fig1/epimark_data/E-MTAB-7370.processed.${i}.zip
 
 done
