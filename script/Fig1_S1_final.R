@@ -20,7 +20,7 @@ Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
 
 Ara_genome_bed <-
   read_delim(
-    "data/Fig1/Ara_genome_bed",
+    "data/Fig2/Ara_genome_bed",
     delim = "\t",
     col_names = c("Chr", "str", "end")
   )

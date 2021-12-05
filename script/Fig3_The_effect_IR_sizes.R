@@ -119,7 +119,7 @@ experimental_rec_state <- state_bp_sum %>%
   select(state, experimental_rec)
 
 #Open the terminal, run the command below in the directory "data/Fig3/" to produce the IR information with state
-#bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b state_10_raw -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $5, $6, $10}' > TAIR10_protein_coding_genes_IR_bed_trimmed_state
+#bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b ../Fig2/state_10_raw -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $5, $6, $10}' > TAIR10_protein_coding_genes_IR_bed_trimmed_state
 Intergenic_region_transcription_bed_state <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_state", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "state"))
 
 #create the list of each IR with 10 states which can connect with the sum of bp of states of each IR later

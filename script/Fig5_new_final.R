@@ -17,11 +17,88 @@ p_load(Packages, character.only = TRUE)
 #lapply(Packages, library, character.only = TRUE)
 
 #Set given labels for the following analysis
+#create the initial bed files using different bins for producing bed files intersecting features
 Ara_Chr_label <- vector(mode = "list", length = 5)
 bin_size <- c(500, 1000, 2000, 3000, 4000, 5000, 10000, 15000, 20000, 50000, 100000, 200000, 500000, 1000000)
+
+Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
+
+Ara_genome_bed <-
+  read_delim(
+    "data/Fig2/Ara_genome_bed",
+    delim = "\t",
+    col_names = c("Chr", "str", "end")
+  )
+
+df_new = vector(mode = "list", length = 5)
+
+for (chr in seq_along(Ara_Chr_label)) {
+  for (size in seq_along(bin_size)) {
+    Ara_Chr_label[[chr]][[size]] <-
+      c(
+        seq(Ara_genome_bed$str[[chr]], Ara_genome_bed$end[[chr]], by = bin_size[[size]]),
+        Ara_genome_bed$end[[chr]]
+      )
+    
+    df_new[[chr]][[size]] <- tibble(
+      Chr = rep(Chr_label[[chr]], length(Ara_Chr_label[[chr]][[size]])),
+      str = c(Ara_Chr_label[[chr]][[size]]),
+      size_l = bin_size[[size]]
+    ) %>%
+      mutate(end = lead(str)) %>%
+      drop_na() %>%
+      mutate(bin = seq(1:n())) %>%
+      mutate(chr_bin = str_c(Chr, "_", bin)) %>%
+      select(Chr, str, end, chr_bin, size_l)
+  }
+}
+
+den_table_list <-
+  bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
+  split(.$size_l)
+
 bin_name <-
   c("0_5k", "1k", "2k", "3k", "4k", "5k", "10k", "15k", "20k", "50k", "100k", "200k", "500k", "1000k")
-Chr_label = c("Chr1", "Chr2", "Chr3", "Chr4", "Chr5")
+
+paths_den_table <-
+  str_c(
+    "data/",
+    "den_table_",
+    bin_name,
+    "_bed"
+  )
+
+pwalk(list(
+  den_table_list,
+  paths_den_table,
+  delim = "\t",
+  col_names = FALSE
+),
+write_delim)
+
+#use the original 9-chromatin state file to modify state 8 sandwiched by two state 9 segments into state 9
+state_9_total_modified <- read_delim("./data/Fig5/chromatin_state_total_bed", col_names = c("Chr", "str", "end", "state"), delim = "\t") %>%
+  arrange(Chr, str) %>%
+  group_by(Chr) %>%
+  mutate(pre_state = lag(state), aft_state = lead(state)) %>%
+  mutate(state = if_else(state == "state8" & pre_state == "state9" & aft_state == "state9", "state9", state)) %>%
+  select(-pre_state, -aft_state) %>%
+  ungroup() 
+
+write_delim(state_9_total_modified, "./data/Fig5/state_9_total_modified", delim = "\t", col_names = FALSE)
+
+
+#Open the terminal, run the command below in the directory "./data/Fig4" to procude the decompressed bed file
+#gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
+Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", col_names = c("Chr", "str", "end", "cross_raw"), delim = "\t") %>%
+  mutate(Chr = str_c("Chr", Chr)) %>%
+  left_join(SNP_tag_Ian) %>%
+  select(-cross_raw)
+
+write_delim(Ian_pop_passed_SNP_bed, "./data/Fig4/Ian_pop_passed_SNP_bed", col_names = FALSE, delim = "\t")
+
+#Open the terminal, run the shell script "Fig5_IR_SNP_bed_file.sh" below in the directory "./script" for generating the modified 10-state segments
+#Then create the 10-state segments with the information of SNP density and IR using different sizes of bins 
 
 #Import data (the segment of state data and CO data)
 #State data in tables with different size of bins
@@ -62,44 +139,6 @@ for (size in seq_along(bin_name)) {
     arrange(Chr, str) %>%
     ungroup() 
 }
-
-#Create tables with different size of bins for the latter computation of CO rate of each bins
-Ara_genome_bed <-
-  read_delim(
-    "./data/Fig4/Ara_genome_bed",
-    delim = "\t",
-    col_names = c("Chr", "str", "end")
-  )
-
-df_new = vector(mode = "list", length = 5)
-
-for (chr in seq_along(Ara_Chr_label)) {
-  for (size in seq_along(bin_size)) {
-    Ara_Chr_label[[chr]][[size]] <-
-      c(
-        seq(Ara_genome_bed$str[[chr]], Ara_genome_bed$end[[chr]], by = bin_size[[size]]),
-        Ara_genome_bed$end[[chr]]
-      )
-    
-    df_new[[chr]][[size]] <- tibble(
-      Chr = rep(Chr_label[[chr]], length(Ara_Chr_label[[chr]][[size]])),
-      str = c(Ara_Chr_label[[chr]][[size]]),
-      size_l = rep(bin_size[[size]], length(Ara_Chr_label[[chr]][[size]]))
-    ) %>%
-      mutate(end = lead(str)) %>%
-      drop_na() %>%
-      mutate(bin = seq(1:n())) %>%
-      mutate(chr_bin = str_c(Chr, "_", bin)) %>%
-      select(Chr, str, end, chr_bin, size_l)
-  }
-}
-
-den_table_list <-
-  bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
-  split(.$size_l)
-
-
-
 
 #read CO file and calculate recombination rate
 paths_den_table_RCO <-
