@@ -51,7 +51,7 @@ den_table_list <-
   bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
   split(.$size_l)
 
-write_delim(den_table_list[[11]], "./data/Fig4/den_table_100k_bed", delim = "\t", col_names = FALSE)
+write_delim(den_table_list[[11]], "./data/den_table_100k_bed", delim = "\t", col_names = FALSE)
 
 
 #produce the table of SNP from 5 F2 populations from Blakewell's research
@@ -60,7 +60,7 @@ SNP_tag_Ian <- tibble(
   cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
 )
 
-#Open the terminal, run the shell script "Fig4_CO_SNP_intersection.sh" in the directory "data/Fig4" to procude the decompressed bed file
+#Open the terminal, run the command below in the directory "./data/Fig4" to procude the decompressed bed file
 #gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
 Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", col_names = c("Chr", "str", "end", "cross_raw"), delim = "\t") %>%
   mutate(Chr = str_c("Chr", Chr)) %>%

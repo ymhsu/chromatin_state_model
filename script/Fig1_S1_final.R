@@ -58,7 +58,7 @@ bin_name <-
 
 paths_den_table <-
   str_c(
-    "data/Fig1/",
+    "data/",
     "den_table_",
     bin_name,
     "_bed"

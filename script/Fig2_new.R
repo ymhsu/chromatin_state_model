@@ -895,7 +895,7 @@ den_table_list <-
   bind_rows(df_new[[1]], df_new[[2]], df_new[[3]], df_new[[4]], df_new[[5]]) %>%
   split(.$size_l)
 
-write_delim(den_table_list[[11]], "./data/Fig2/den_table_100k_bed", delim = "\t", col_names = FALSE)
+write_delim(den_table_list[[11]], "./data/den_table_100k_bed", delim = "\t", col_names = FALSE)
 
 #create the list of states for being joined by the information of sum of state 
 den_table_list_state <- bind_rows(den_table_list) %>%
@@ -907,8 +907,8 @@ den_table_list_state <- bind_rows(den_table_list) %>%
 
 #make the intersection between 10 states and the 100-bin bed file, and import 10-state information and calculate the sum of base pairs of 10 states
 #Open the terminal, run the command below in the directory "data/Fig2/"
-#bedtools intersect -a state_10_raw -b den_table_100k_bed -wb | bedtools sort | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$7"\t"$8}' > den_table_100k_state_10_intersect
-#bedtools intersect -a den_table_100k_bed -b R_CO_final_bed -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $6, $7, $8, $9, $10}' > den_table_100k_RCO_raw_bed
+#bedtools intersect -a state_10_raw -b ../den_table_100k_bed -wb | bedtools sort | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$7"\t"$8}' > den_table_100k_state_10_intersect
+#bedtools intersect -a ../den_table_100k_bed -b R_CO_final_bed -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $6, $7, $8, $9, $10}' > den_table_100k_RCO_raw_bed
 
 #calculate the sum of base pairs of each state in 100-kb bins
 den_table_state_sum_100k <- read_delim(
