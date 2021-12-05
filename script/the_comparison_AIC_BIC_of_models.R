@@ -605,4 +605,4 @@ sp_data_AIC_BIC_4models <- ll_gather_f(op_stage1_result_50_500k, den_table_f_all
   select(bin_size, AIC, BIC, R_square, stage) %>%
   mutate(AIC = round(AIC, 2), BIC = round(BIC, 2))
 
-write_delim(sp_data_AIC_BIC_4models, "./analysis/sp_data_AIC_BIC_4models", delim = "\t", col_names = TRUE)
+write_delim(sp_data_AIC_BIC_4models, "./analysis_output/sp_data_AIC_BIC_4models", delim = "\t", col_names = TRUE)
