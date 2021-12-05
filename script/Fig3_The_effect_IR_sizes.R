@@ -14,9 +14,11 @@ setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chrom
 #Using all intergenic regions between protein coding genes to perform the analysis
 
 #load all IR 
+#note that "TAIR10_protein_coding_genes_IR_bed_trimmed_f" is produced by "TAIR10_protein_coding_genes_IR_bed_trimmed" from which 5th, 7th, 8th column are removed. 
 Intergenic_region_transcription_bed <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_f", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription"))
 
-#load IR with intersected Rowan's CO interval
+##Open the terminal, run the command below in the directory "data/Fig3/" to produce IR with intersected Rowans' CO intervals
+#bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_bed_trimmed_RCO
 Intergenic_region_transcription_RCO_bed <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_RCO", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "Chr_CO", "str_CO", "end_CO", "sel_420", "CO_l"))
 
 #calculate sum of CO for each IR that intersects Rowan's COs
@@ -98,7 +100,7 @@ state9_CO_sum <- chromatin_state_total_R_CO_raw_noSV %>%
   mutate(CO_n = (end-str)/(end_CO-str_CO)) %>%
   group_by(state) %>%
   summarise(sum_CO = sum(CO_n)) 
-sum(state9_CO_sum$sum_CO)
+
 #import CO in SVs
 SV_raw_R_CO <- read_delim("./data/Fig2/SV_raw_R_CO", delim = "\t", col_names = c("Chr", "str", "end", "state", "Chr_CO","str_CO", "end_CO", "Sel_420", "CO_l"))
 
@@ -116,7 +118,8 @@ experimental_rec_state <- state_bp_sum %>%
   mutate(experimental_rec = sum_CO/sum_bp/2182/2*10^8) %>%
   select(state, experimental_rec)
 
-#load the IR information with state
+#Open the terminal, run the command below in the directory "data/Fig3/" to produce the IR information with state
+#bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b state_10_raw -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $5, $6, $10}' > TAIR10_protein_coding_genes_IR_bed_trimmed_state
 Intergenic_region_transcription_bed_state <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_state", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "state"))
 
 #create the list of each IR with 10 states which can connect with the sum of bp of states of each IR later
@@ -145,15 +148,14 @@ IR_size_group_state_prediction_raw <- IR_size_group_state_list %>%
   mutate(frac_state_bin = sum_state_bp/sum_bp_bin) %>%
   left_join(experimental_rec_state)
  
-##produce the table with predicted CO rate for each group of IR (all event & 3 transcription types)##
-
+##produce the table with predicted CO rate for each group of IR (all events & 3 transcription types)##
 #3 types
 IR_size_group_state_prediction_df_types <- IR_size_group_state_prediction_raw %>%
   mutate(pre_CO_rate_part = experimental_rec*frac_state_bin) %>%
   group_by(transcription, group_size) %>%
   summarise(pre_CO_rate = sum(pre_CO_rate_part))
 
-#all types merges
+#all types merged
 IR_size_group_state_prediction_all <- IR_size_group_state_prediction_raw %>%
   group_by(group_size, state, experimental_rec) %>%
   #filter(group_size == 1 & state == "state1")
@@ -198,7 +200,7 @@ IR_pre_CO_rate_event <- tibble(
   mutate(CO_rate = sum_CO/size/2182/2/10^-8)
 
 
-#create the function of optimization based on IR size
+#create the function of optimization based on IR size for the 3-parameter modulation
 IR_effect_all_events <-  function(a, data) {
   x = data %>%
     mutate(IR_para1 = a[1], IR_para2 =a[2], IR_para3 = a[3]) %>%
@@ -293,7 +295,7 @@ Fig3_bottom_f <- bind_rows(Intergenic_region_transcription_bed_RCO_group_500bp) 
 
 Fig3_final_f <- ggarrange(Fig3_top_f, Fig3_bottom_f, nrow = 2)
 
-ggsave("./analysis/Fig3_final_f.jpeg", Fig3_final_f, width = 330, height = 288, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_final_f.jpeg", Fig3_final_f, width = 330, height = 288, units = c("mm"), dpi = 320)
 
 
 #produce different stages of IR fig 3 top to show how we improve the model
@@ -309,6 +311,7 @@ Fig3_top_data_plot <- bind_rows(Intergenic_region_transcription_bed_RCO_group_50
   left_join(IR_size_group_state_prediction_all) %>%
   left_join(IR_pre_CO_rate_event_modu_all) 
 
+#This figure only shows histograms of experimental CO rate of different categories of IRs.
 Fig3_top_f_raw <- Fig3_top_data_plot %>%
   ggplot() +
   geom_col(aes(x = bp/1000, Recrate), fill = "grey50", colour = "black", size=0.7, width = 0.4) +
@@ -323,6 +326,7 @@ Fig3_top_f_raw <- Fig3_top_data_plot %>%
         axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18)) +
   scale_x_continuous(name = "kb", breaks = c(seq(0, 10, 0.5))) + theme(axis.text.x = element_text(size = 16, angle = 15, hjust = 0.5, vjust = 1, face = "bold"))
 
+#adding the prediction of the experimental CO rate of 10 states as the blue curve
 Fig3_top_f_10states_fit <- Fig3_top_data_plot %>%
   ggplot() +
   geom_col(aes(x = bp/1000, Recrate), fill = "grey50", colour = "black", size=0.7, width = 0.4) +
@@ -337,6 +341,7 @@ Fig3_top_f_10states_fit <- Fig3_top_data_plot %>%
         axis.text.y = element_text(size = 18, face = "bold"), strip.text.y = element_text(colour = "black", face = "bold", size = 18)) +
   scale_x_continuous(name = "kb", breaks = c(seq(0, 10, 0.5))) + theme(axis.text.x = element_text(size = 16, angle = 15, hjust = 0.5, vjust = 1, face = "bold"))
 
+#adding the prediction of the experimental CO rate of 10 states with the modulation of 3 parameters as the red curve
 Fig3_top_f_IR_fit <- Fig3_top_data_plot %>%
   ggplot() +
   geom_col(aes(x = bp/1000, Recrate), fill = "grey50", colour = "black", size=0.7, width = 0.4) +
@@ -352,10 +357,10 @@ Fig3_top_f_IR_fit <- Fig3_top_data_plot %>%
   scale_x_continuous(name = "kb", breaks = c(seq(0, 10, 0.5))) + theme(axis.text.x = element_text(size = 16, angle = 15, hjust = 0.5, vjust = 1, face = "bold"))
 
 
-ggsave("./analysis/Fig3_top_f_raw.jpeg", Fig3_top_f_raw, width = 300, height = 180, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig3_top_f_10states_fit.jpeg", Fig3_top_f_10states_fit, width = 300, height = 180, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig3_top_f_IR_fit.jpeg", Fig3_top_f_IR_fit, width = 300, height = 180, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig3_bottom_f_presentation.jpeg", Fig3_bottom_f, width = 300, height = 180, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_top_f_raw.jpeg", Fig3_top_f_raw, width = 300, height = 180, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_top_f_10states_fit.jpeg", Fig3_top_f_10states_fit, width = 300, height = 180, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_top_f_IR_fit.jpeg", Fig3_top_f_IR_fit, width = 300, height = 180, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_bottom_f_presentation.jpeg", Fig3_bottom_f, width = 300, height = 180, units = c("mm"), dpi = 320)
 
 
 
@@ -404,9 +409,9 @@ Fig3_bottom <- bind_rows(Intergenic_region_transcription_bed_RCO_group_500bp) %>
 
 Fig3_final <- ggarrange(Fig3_top, Fig3_bottom, nrow = 2)
 
-ggsave("./analysis/Fig3_top_final.jpeg", Fig3_top, width = 300, height = 200, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig3_bottom_final.jpeg", Fig3_bottom, width = 450, height = 300, units = c("mm"), dpi = 320)
-ggsave("./analysis/Fig3_final.jpeg", Fig3_final, width = 550, height = 480, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_top_final.jpeg", Fig3_top, width = 300, height = 200, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_bottom_final.jpeg", Fig3_bottom, width = 450, height = 300, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig3_final.jpeg", Fig3_final, width = 550, height = 480, units = c("mm"), dpi = 320)
 
 #######################old plot without any predicted CO rate ##############################
 
@@ -484,5 +489,5 @@ IR_state_analysis <- ggarrange(frac_state_IR, CO_rate_state, widths = c(1,1.5), 
 
 IR_state_analysis_f <- IR_state_analysis + bgcolor("white")
 
-ggsave("./analysis/IR_state_analysis_test.jpeg", IR_state_analysis_f, width = 540, height = 360, units = c("mm"), dpi = 320)
-?ggarrange
+ggsave("./analysis_output/IR_state_analysis_test.jpeg", IR_state_analysis_f, width = 540, height = 360, units = c("mm"), dpi = 320)
+
