@@ -340,7 +340,7 @@ final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1 <- final_
   mutate(bin = rep(bin_size[10:13], each = 15))
 
 
-write_delim(final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1, "./analysis/final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1_ll", delim = "\t", col_names = TRUE)
+write_delim(final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1, "./analysis_output/final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1_ll", delim = "\t", col_names = TRUE)
 
 final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1_l <- final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1 %>%
   split(.$bin)
@@ -471,12 +471,12 @@ for (i in seq_along(Fig5_tag$Chr)) {
 
 path_Fig5_v2 <- str_c("Fig5_Chr", seq(1,5), "_new_model_v3.jpeg")
 
-pwalk(list(path_Fig5_v2, Fig5_f_v2), ggsave, path = "./analysis/", width = 320, height = 192, units = c("mm"), dpi = 320)
+pwalk(list(path_Fig5_v2, Fig5_f_v2), ggsave, path = "./analysis_output/", width = 320, height = 192, units = c("mm"), dpi = 320)
 
 Fig5_f_v2_gra_abs_test <- Fig5_main_v2[[1]] +
   theme(legend.position = c(0.8, 0.85))
 
-ggsave("./analysis/Fig5_Chr1_new_model_gra_abs_v1.jpeg", Fig5_f_v2_gra_abs_test, width = 150, height = 100, units = c("mm"), dpi = 320)
+ggsave("./analysis_output/Fig5_Chr1_new_model_gra_abs_v1.jpeg", Fig5_f_v2_gra_abs_test, width = 150, height = 100, units = c("mm"), dpi = 320)
 
 
 #select the best optimization result for producing Fig S7
@@ -495,7 +495,7 @@ SP_table_op_para_combined_v2 <- tibble(
 
 signif
 
-write_csv(SP_table_op_para_combined_v2, "./analysis/SP_table_op_para_combined_v2_ll.csv", col_names = TRUE)
+write_csv(SP_table_op_para_combined_v2, "./analysis_output/SP_table_op_para_combined_v2_ll.csv", col_names = TRUE)
 
 ####produce the scatter plot for figure S7 (state9/SV SNP/IR effect added)####
 den_table_f_scatter_plot_raw_rec = vector("list", length = length(c(1:4)))
@@ -549,7 +549,7 @@ Fig_SX_v2 <- annotate_figure(Fig_SX,
                              left = text_grob("Experimental recombination rate (cM/Mb)", color = "black", rot = 90, size = 18, face = "bold")) +
   theme(plot.margin = margin(0,0.5,0.5,0, "cm"), plot.background = element_rect(fill = "white", color = "white")) 
 
-ggsave("./analysis/Fig_SX_new_ll.png", Fig_SX_v2, width = 360, height = 280, units = c("mm"))
+ggsave("./analysis_output/Fig_SX_new_ll.png", Fig_SX_v2, width = 360, height = 280, units = c("mm"))
 
 
 #perform op from Chr1 to Chr5 separately, and predict other chromosomes using 100-kb bins
@@ -643,6 +643,6 @@ R_square_based_on_op_Chr_table <- tibble(
   Chr5_fit = round(R_square_Chr_list[[5]], 3)
 )
 
-write_delim(R_square_based_on_op_Chr_table, "./analysis/R_square_based_on_op_Chr_table_v3", delim = "\t", col_names = TRUE)
+write_delim(R_square_based_on_op_Chr_table, "./analysis_output/R_square_based_on_op_Chr_table_v3", delim = "\t", col_names = TRUE)
 
 
