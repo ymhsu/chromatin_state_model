@@ -208,7 +208,7 @@ Ian_pop_num <- tibble(cross_f = c(str_c(c("Col_Bur", "Col_Ler", "Col_Ws", "Col_C
 den_table_100kb_f_ICO_ISNP_combined <- bind_rows(den_table_100kb_f_ICO_ISNP) %>%
   left_join(Ian_pop_num) %>%
   mutate(size_bin = (end-str)) %>%
-  left_join(den_table_f_CO_SNP_Ian_100kb_combined_masked_region) %>%
+  left_join(den_table_100kb_f_ICO_ISNP_combined_masked_region) %>%
   replace_na(list(overlapped_masked = "no")) %>%
   filter(overlapped_masked == "no") %>%
   group_by(cross_f) %>%
