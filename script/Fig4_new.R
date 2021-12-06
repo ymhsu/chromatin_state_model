@@ -413,7 +413,7 @@ sum_chi_square_SNP_effect_first_q_50 <- function(a, data1, data2){
     mutate(chi_square_cross = str_c("Col_", str_sub(SNP_effect_total_cross, 18, 21))) %>%
     filter(cross != SNP_effect_total_cross) %>%
     mutate(order = if_else(cross == "Col_Bur", 1, if_else(cross == "Col_Clc", 2, if_else(cross == "Col_Ws", 3, if_else(cross == "Col_Ct", 4, 5))))) %>%
-    left_join(den_table_f_CO_SNP_Ian_100kb_combined_masked_region) %>%
+    left_join(den_table_100kb_f_ICO_ISNP_combined_masked_region) %>%
     replace_na(list(overlapped_masked = "no")) %>%
     filter(overlapped_masked == "no") %>%
     left_join(data2) %>%
