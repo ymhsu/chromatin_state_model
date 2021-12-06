@@ -610,7 +610,7 @@ test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k
 #extract the information of parameters from each replicate
 op_para_Chr_list_raw <- vector("list", length = length(best_ll_Chr$Chr))
 
-for (i in seq_along(op_para_Chr_list)) {
+for (i in seq_along(op_para_Chr_list_raw)) {
   for (j in seq_along(test_foreach_modeling_same_SNP_3_IR_10_states_10_500k_all_IR_consistent_Chr_100k[[1]])) {
     op_para_Chr_list_raw[[i]][[j]] <- tibble(
       Chr = rep(best_ll_Chr$Chr[[i]], 15),

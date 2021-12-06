@@ -85,6 +85,11 @@ write_delim(state_9_total_modified, "./data/Fig5/state_9_total_modified", delim 
 
 #Open the terminal, run the command below in the directory "./data/Fig4" to procude the decompressed bed file
 #gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
+SNP_tag_Ian <- tibble(
+  cross_raw = c(1:5),
+  cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
+)
+
 Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", col_names = c("Chr", "str", "end", "cross_raw"), delim = "\t") %>%
   mutate(Chr = str_c("Chr", Chr)) %>%
   left_join(SNP_tag_Ian) %>%
@@ -136,7 +141,7 @@ for (size in seq_along(bin_name)) {
 }
 
 #read CO file and calculate recombination rate
-paths_den_table_RCO <-
+paths_den_table_RCO_mid <-
   str_c(
     "./data/Fig1/",
     "den_table_",
@@ -146,7 +151,7 @@ paths_den_table_RCO <-
 
 #produce the file of all bins (50-500 k) with the sum of CO (Rowan)
 #calculate the sum of CO
-den_table_CO_sum = vector("list", length = length(bin_name))
+den_table_CO_mid_sum = vector("list", length = length(bin_name))
 
 for (i in seq_along(bin_name)) {
   den_table_CO_sum[[i]] <-
