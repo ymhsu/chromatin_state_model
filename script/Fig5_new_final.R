@@ -141,7 +141,7 @@ for (size in seq_along(bin_name)) {
 }
 
 #read CO file and calculate recombination rate
-paths_den_table_RCO <-
+paths_den_table_RCO_mid <-
   str_c(
     "./data/Fig1/",
     "den_table_",
@@ -151,12 +151,12 @@ paths_den_table_RCO <-
 
 #produce the file of all bins (50-500 k) with the sum of CO (Rowan)
 #calculate the sum of CO
-den_table_CO_sum = vector("list", length = length(bin_name))
+den_table_CO_mid_sum = vector("list", length = length(bin_name))
 
 for (i in seq_along(bin_name)) {
-  den_table_CO_sum[[i]] <-
+  den_table_CO_mid_sum[[i]] <-
     read_delim(
-      paths_den_table_RCO[[i]],
+      paths_den_table_RCO_mid[[i]],
       delim = "\t",
       col_names = c(
         "Chr",
@@ -180,7 +180,7 @@ den_table_f_all_RCO = vector("list", length(bin_name))
 
 for (i in seq_along(bin_name)) {
   den_table_f_all_RCO[[i]] <- den_table_list[[i]] %>%
-    left_join(den_table_CO_sum[[i]]) %>%
+    left_join(den_table_CO_mid_sum[[i]]) %>%
     replace_na(list(sum_CO = 0)) %>%
     mutate(Recrate_Rowan = sum_CO / 2 / 2182 / (end - str) * 10 ^ 8, size_bin = end-str) %>%
     group_by(Chr) %>%
