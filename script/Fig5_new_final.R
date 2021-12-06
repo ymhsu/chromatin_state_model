@@ -350,35 +350,7 @@ write_delim(final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_re
 final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1_l <- final_op_para_modified_same_3IR_SNP_50k_500k_10_states_consistent_rep1 %>%
   split(.$bin)
 
-#extract the best fit of each bin for the following analysis
-table_para_ll <- vector("list", length = length(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial))
-
-for (i in seq_along(table_para_ll)) {
-  for (j in seq_along(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[1]])) {
-    x <- state_9_same_SNP_IR_para_modu_v1_consistent(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], data2 = den_table_f_all_RCO[[i+9]])
-    test_table <- den_table_f_all_RCO[[i+9]] %>%
-      mutate(predicted_Recrate = state_9_same_SNP_IR_para_modu_v2_rec(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_RCO[[i+9]]))
-    
-    R_square <- 1-sum((test_table$predicted_Recrate-test_table$Recrate_Rowan)^2)/sum((test_table$Recrate_Rowan-mean(test_table$Recrate_Rowan))^2)
-    
-    table_para_ll[[i]][[j]] <- tibble(
-      bin_size = bin_size[i+9],
-      rep = j,
-      para = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]],
-      ll = rep(x, length(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]])), 
-      R_square = R_square
-    ) 
-  }
-}
-
-#only keep the best fit with largest likelihood and make the table as a list
-table_para_ll_max <- bind_rows(table_para_ll) %>%
-  group_by(bin_size) %>%
-  filter(ll == max(ll)) %>%
-  split(.$bin_size)
-
-#####Fig 5: make new landscape plot based on 100-kb bins
-#create the modified function that can show rescaled CO rate (least square 10 states/same SNP and IR effect, including state9/SV)
+#create the modified function that can show rescaled CO rate (10 states/same SNP and IR effect, including state9/SV)
 state_9_same_SNP_IR_para_modu_v2_rec <-  function(a, data, data2) {
   para_d <- tibble(
     feature = c(str_c("state", c(1:9)), "SV"),
@@ -410,6 +382,34 @@ state_9_same_SNP_IR_para_modu_v2_rec <-  function(a, data, data2) {
   x2$rescaled_model_rec_rates
 }
 
+#extract the best fit of each bin for the following analysis
+table_para_ll <- vector("list", length = length(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial))
+
+for (i in seq_along(table_para_ll)) {
+  for (j in seq_along(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[1]])) {
+    x <- state_9_same_SNP_IR_para_modu_v1_consistent(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], data2 = den_table_f_all_RCO[[i+9]])
+    test_table <- den_table_f_all_RCO[[i+9]] %>%
+      mutate(predicted_Recrate = state_9_same_SNP_IR_para_modu_v2_rec(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]], den_table_ISNP_IR_state_Ler_sep_seg[[i+9]], den_table_f_all_RCO[[i+9]]))
+    
+    R_square <- 1-sum((test_table$predicted_Recrate-test_table$Recrate_Rowan)^2)/sum((test_table$Recrate_Rowan-mean(test_table$Recrate_Rowan))^2)
+    
+    table_para_ll[[i]][[j]] <- tibble(
+      bin_size = bin_size[i+9],
+      rep = j,
+      para = final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]],
+      ll = rep(x, length(final_op_para_modified_9_state_3IR_SNP_consistent_first_trial[[i]][[j]])), 
+      R_square = R_square
+    ) 
+  }
+}
+
+#only keep the best fit with largest likelihood and make the table as a list
+table_para_ll_max <- bind_rows(table_para_ll) %>%
+  group_by(bin_size) %>%
+  filter(ll == max(ll)) %>%
+  split(.$bin_size)
+
+#####Fig 5: make new landscape plot based on 100-kb bins
 #create the table for later using the middle of arms to produce the inset of landscape
 Ara_peri_posi <- tibble(
   Chr = str_c("Chr", 1:5),
