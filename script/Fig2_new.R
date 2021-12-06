@@ -345,6 +345,16 @@ gene_sum_state_3kb_non_overlapped <- read_delim("./data/Fig2/TAIR10_protein_codi
   select(-order) %>%
   mutate(mid_posi_bin = if_else(type == "TSS", (bin + bin - 1)/2, if_else(type == "TTS", (bin + bin - 1)/2 + 100 + row_n, (bin + bin - 1)/2 + row_n)))
 
+#based on the fraction of 10 states, we can calculate the theoretical recrate of each bin of integrated IR by using observed genome-wide recrate of 10 state
+#calculate genome-wide recrate of 10 states using the data produced in the analysis of Fig 2A.
+#the table of the genome-wide recrate of 10 states
+experimental_rec_state <- state_bp_sum %>%
+  left_join(state9_CO_sum) %>%
+  replace_na(list(sum_CO = 0)) %>%
+  mutate(sum_CO = if_else(state == "SV", 17077 - sum(sum_CO), sum_CO)) %>%
+  mutate(experimental_rec = sum_CO/sum_bp/2182/2*10^8) %>%
+  select(state, experimental_rec)
+
 #using genome-wide CO rate of 9 state (no SV) to predict CO rate of each bin of gene bodies and flanking regions
 predicted_bins_non_overlapped <- gene_sum_state_3kb_non_overlapped %>%
   arrange(mid_posi_bin) %>%
@@ -496,17 +506,6 @@ TAIR10_protein_coding_genes_IR_100bins_integral_state_frac <- TAIR10_protein_cod
   mutate(sum_bin_bp = sum(sum_state_bp)) %>%
   mutate(state_fraction = sum_state_bp/sum_bin_bp) %>%
   mutate(mid_posi_bin = (bin + bin - 1)/2)
-
-
-#based on the fraction of 10 states, we can calculate the theoretical recrate of each bin of integrated IR by using observed genome-wide recrate of 10 state
-#calculate genome-wide recrate of 10 states using the data produced in the analysis of Fig 2A.
-#the table of the genome-wide recrate of 10 states
-experimental_rec_state <- state_bp_sum %>%
-  left_join(state9_CO_sum) %>%
-  replace_na(list(sum_CO = 0)) %>%
-  mutate(sum_CO = if_else(state == "SV", 17077 - sum(sum_CO), sum_CO)) %>%
-  mutate(experimental_rec = sum_CO/sum_bp/2182/2*10^8) %>%
-  select(state, experimental_rec)
 
 #the table of theoretical recrate of each bin of different IR_type based on genome-wide recrate
 TAIR10_protein_coding_genes_IR_100bins_integral_state_frac_rec <- TAIR10_protein_coding_genes_IR_100bins_integral_state_frac %>%
