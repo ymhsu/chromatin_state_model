@@ -284,7 +284,7 @@ for (i in c(1:8)) {
 }
 
 #perform optimization (50k ~ 500k)
-registerDoParallel(cores = 12)
+registerDoParallel(cores = 8)
 getDoParWorkers()
 
 op_stage2_result_50_500k <-
