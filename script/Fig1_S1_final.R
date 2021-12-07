@@ -449,7 +449,7 @@ Fig1_test_SV <- ggarrange(isolate_feature_figure_SV_merged[[1]], isolate_feature
 Fig1_test_SV_f <- annotate_figure(Fig1_test_SV, bottom = text_grob("The density of features", face = "bold", size = 18), left = text_grob("Recombination rate (cM/Mb)", rot = 90, face = "bold", size = 18)) +
   theme(plot.margin = margin(0,0.5,0.5,0, "cm"), plot.background = element_rect(fill = "white", color = "white"))
 
-ggsave("analysis/Fig1_poly4.jpeg", Fig1_test_SV_f, width = 400, height = 330, units = c("mm"))
+ggsave("./analysis_output/Fig1_poly4.jpeg", Fig1_test_SV_f, width = 400, height = 330, units = c("mm"))
 
 
 ##Table S2##

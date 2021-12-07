@@ -1,10 +1,7 @@
 #!/bin/bash
 # Program: bedtools intersect
 # make the intersection between genomic/epigenomic features with initial different bin-size bed files
-#SBATCH --job-name=bedtools
 
-#Bedtools intersect
-#gene/TEs data and density table
 set -euo pipefail
 
 
