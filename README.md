@@ -51,7 +51,7 @@ From the directory "chromatin_state_model/", execute:
 R CMD BATCH ./script/Fig1_S1_final.R
 ``` 
 
-Note: the shell script "Fig1_9features_intersect_14bins_f.sh", used in this R code, produces the required data files for 14 different bin sizes ranging from 0.5kb to 1000 kb. You can change that both in the shell script and this R code to your favorite bin size(s).
+Note: the shell script "Fig1_9features_intersect_14bins_f.sh", used in this R code, produces the required data files for 14 different bin sizes ranging from 0.5 kb to 1000 kb. You can change that both in the shell script and this R code to your favorite bin size(s).
 
 #### Reproducing Figure 2 and S2-S6 of the paper
 From the directory "chromatin_state_model/", execute: 
