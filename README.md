@@ -29,7 +29,7 @@ The R scripts also install required dependencies.\
 empty initially, when running the scripts the results are written here.\
 
 
-# Cloning the repository
+## Cloning the repository
 The simplest way to reproduce the analyses is to use git to clone the directories via:
 ```bash
 git clone https://github.com/ymhsu/chromatin_state_model.git
