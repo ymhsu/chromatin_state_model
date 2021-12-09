@@ -1,5 +1,5 @@
 #using "p_load" from the package "pacman" to install and load necessary packages
-install.packages("pacman")
+install.packages("pacman", repos = "https://mirror.ibcp.fr/pub/CRAN/")
 library(pacman)
 
 Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
@@ -9,7 +9,7 @@ p_load(Packages, character.only = TRUE)
 
 
 #change the directory "chromatin_state_model" as the working directory (the link below is an example)
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+#setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #Using all intergenic regions between protein coding genes to perform the analysis
 
@@ -17,8 +17,8 @@ setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chrom
 #note that "TAIR10_protein_coding_genes_IR_bed_trimmed_f" is produced by "TAIR10_protein_coding_genes_IR_bed_trimmed" from which 5th, 7th, 8th column are removed. 
 Intergenic_region_transcription_bed <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_f", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription"))
 
-##Open the terminal, run the command below in the directory "data/Fig3/" to produce IR with intersected Rowans' CO intervals
-#bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_bed_trimmed_RCO
+##run the command below in the directory "data/Fig3/" to produce IR with intersected Rowans' CO intervals
+system(paste("cd ./data/Fig3", "&& bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_bed_trimmed_RCO", sep = " "))
 Intergenic_region_transcription_RCO_bed <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_RCO", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "Chr_CO", "str_CO", "end_CO", "sel_420", "CO_l"))
 
 #calculate sum of CO for each IR that intersects Rowan's COs
@@ -118,8 +118,8 @@ experimental_rec_state <- state_bp_sum %>%
   mutate(experimental_rec = sum_CO/sum_bp/2182/2*10^8) %>%
   select(state, experimental_rec)
 
-#Open the terminal, run the command below in the directory "data/Fig3/" to produce the IR information with state
-#bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b ../Fig2/state_10_raw -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $5, $6, $10}' > TAIR10_protein_coding_genes_IR_bed_trimmed_state
+#run the command below in the directory "data/Fig3/" to produce the IR information with state
+system(paste("cd ./data/Fig3/", "&& bedtools intersect -a TAIR10_protein_coding_genes_IR_bed_trimmed_f -b ../Fig2/state_10_raw -wb | awk -v OFS='\t' '{print$1, $2, $3, $4, $5, $6, $10}' > TAIR10_protein_coding_genes_IR_bed_trimmed_state", sep = " "))
 Intergenic_region_transcription_bed_state <- read_delim("./data/Fig3/TAIR10_protein_coding_genes_IR_bed_trimmed_state", delim = "\t", col_names = c("Chr", "str", "end", "feature", "group_label", "transcription", "state"))
 
 #create the list of each IR with 10 states which can connect with the sum of bp of states of each IR later

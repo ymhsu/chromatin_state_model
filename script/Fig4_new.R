@@ -1,8 +1,8 @@
 #change the directory "chromatin_state_model" as the working directory (the link below is an example)
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+#setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #using "p_load" from the package "pacman" to install and load necessary packages
-install.packages("pacman")
+install.packages("pacman", repos = "https://mirror.ibcp.fr/pub/CRAN/")
 library(pacman)
 
 Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
@@ -60,8 +60,9 @@ SNP_tag_Ian <- tibble(
   cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
 )
 
-#Open the terminal, run the command below in the directory "./data/Fig4" to procude the decompressed bed file
-#gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
+#run the command below in the directory "./data/Fig4" to procude the decompressed bed file
+system(paste("cd ./data/Fig4", "&& gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw", sep = " "))
+
 Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", col_names = c("Chr", "str", "end", "cross_raw"), delim = "\t") %>%
   mutate(Chr = str_c("Chr", Chr)) %>%
   left_join(SNP_tag_Ian) %>%
@@ -70,7 +71,8 @@ Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", c
 write_delim(Ian_pop_passed_SNP_bed, "./data/Fig4/Ian_pop_passed_SNP_bed", col_names = FALSE, delim = "\t")
 
 
-#Open the terminal, run the shell script "Fig4_CO_SNP_intersection.sh" in the directory "script/" to procude the bed file for the intersection between CO/SNP and 100-kb bins.
+#run the shell script "Fig4_CO_SNP_intersection.sh" in the directory "script/" to procude the bed file for the intersection between CO/SNP and 100-kb bins.
+system(paste("cd ./script", "&& bash Fig4_CO_SNP_intersection.sh", sep = " "))
 
 #produce the file of the sum of Rowans' COs
 den_table_100k_RCO_sum <- read_delim(

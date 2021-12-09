@@ -1,5 +1,5 @@
 #change the directory "chromatin_state_model" as the working directory
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+#setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #using "p_load" from the package "pacman" to install and load necessary packages
 install.packages("pacman")
@@ -83,8 +83,9 @@ state_9_total_modified <- read_delim("./data/Fig5/chromatin_state_total_bed", co
 write_delim(state_9_total_modified, "./data/Fig5/state_9_total_modified", delim = "\t", col_names = FALSE)
 
 
-#Open the terminal, run the command below in the directory "./data/Fig4" to procude the decompressed bed file
-#gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
+#run the command below in the directory "./data/Fig4" to procude the decompressed bed file
+system(paste("cd ./data/Fig4/", "&& gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw", sep = " "))
+
 SNP_tag_Ian <- tibble(
   cross_raw = c(1:5),
   cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
@@ -97,9 +98,10 @@ Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", c
 
 write_delim(Ian_pop_passed_SNP_bed, "./data/Fig4/Ian_pop_passed_SNP_bed", col_names = FALSE, delim = "\t")
 
-#Open the terminal, run the shell script "Fig5_IR_SNP_bed_file.sh" below in the directory "./script" for generating the modified 10-state segments
-#Then create the 10-state segments with the information of SNP density and IR using different sizes of bins 
+#run the shell script "Fig5_IR_SNP_bed_file.sh" below in the directory "./script" for generating the modified 10-state segments
+system(paste("cd ./script/", "&& bash Fig5_IR_SNP_bed_file.sh", sep = " "))
 
+#Then create the 10-state segments with the information of SNP density and IR using different sizes of bins 
 #Import data (the segment of state data and CO data)
 #State data in tables with different size of bins
 #Every state segment with intersected IR info
@@ -154,9 +156,9 @@ paths_den_table_RCO_mid <-
 den_table_CO_mid_sum = vector("list", length = length(bin_name))
 
 for (i in seq_along(bin_name)) {
-  den_table_CO_sum[[i]] <-
+  den_table_CO_mid_sum[[i]] <-
     read_delim(
-      paths_den_table_RCO[[i]],
+      paths_den_table_RCO_mid[[i]],
       delim = "\t",
       col_names = c(
         "Chr",
@@ -180,7 +182,7 @@ den_table_f_all_RCO = vector("list", length(bin_name))
 
 for (i in seq_along(bin_name)) {
   den_table_f_all_RCO[[i]] <- den_table_list[[i]] %>%
-    left_join(den_table_CO_sum[[i]]) %>%
+    left_join(den_table_CO_mid_sum[[i]]) %>%
     replace_na(list(sum_CO = 0)) %>%
     mutate(Recrate_Rowan = sum_CO / 2 / 2182 / (end - str) * 10 ^ 8, size_bin = end-str) %>%
     group_by(Chr) %>%

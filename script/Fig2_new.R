@@ -1,5 +1,5 @@
 #using "p_load" from the package "pacman" to install and load necessary packages
-install.packages("pacman")
+install.packages("pacman", repos = "https://mirror.ibcp.fr/pub/CRAN/")
 library(pacman)
 
 Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
@@ -8,7 +8,7 @@ p_load(Packages, character.only = TRUE)
 #lapply(Packages, library, character.only = TRUE)
 
 #change the directory "chromatin_state_model" as the working directory (the link below is an example)
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+#setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #######The analysis of Fig 2A#######
 #pie chart for the comparison between states and CO
@@ -92,7 +92,9 @@ for (i in seq_along(1:2)) {
 #For flanking regions, we only focused on regions not being polluted by any genes.
 #To simply our anysis, we just extracted non-overlapping genes located in syntenic regions.
 #However, we still need to extract all protein coding genes to precisely locate the 3-kb flanking regions before removing genes in which we are not interested
-#Open the terminal, run the shell script "genomic_features.sh" in the directory "script/" to create the bed file of protein coding genes.
+#create the necessary files of genomic features.
+#The files will be located in "data/Fig1/".
+system(paste("cd script/", "&& bash genomic_features.sh", sep = " "))
 TAIR10_protein_coding_genes_bed_sorted <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_sorted", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "gene_name"))
 TAIR10_protein_coding_genes_bed_sorted_merge <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_sorted_merge", delim = "\t", col_names = c("Chr", "str", "end", "gene_name"))
 Ara_genome <- read_delim("./data/Fig2/Ara_genome", delim = "\t", col_names = c("Chr", "chr_end"))
@@ -142,8 +144,8 @@ TAIR10_protein_coding_genes_bed_non_overlapping <- TAIR10_protein_coding_genes_b
 
 write_delim(TAIR10_protein_coding_genes_bed_non_overlapping, "./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping", delim = "\t", col_names = FALSE)
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to identify protein-coding genes not overlapping SVs. 
-#bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV
+#create protein-coding genes not overlapping SVs. 
+system(paste("cd data/Fig2/", "&& bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV", sep = " "))
 
 #import non_overlapping genes that already subtract SVs 
 TAIR10_protein_coding_genes_bed_non_overlapping_noSV <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type")) %>%
@@ -171,10 +173,11 @@ TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral <- bind
 write_delim(TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral, "./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral", col_names = FALSE, delim = "\t")
 
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to remove SVs of flanking regions 
-#bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral_flanking_noSV
-#Then, create the final integral list of syntenic genes with gene bodies and flanking regions
+#remove SVs of flanking regions 
+system(paste("cd data/Fig2/", "&& bedtools subtract -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral -b SV_raw > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral_flanking_noSV", sep = " "))
 
+
+#Then, create the final integral list of syntenic genes with gene bodies and flanking regions
 #create the gene list of gene bodies and flanking regions with the old coordinates
 pc_gene_list <- TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_integral %>%
   select(gene_name, type, str_old = str, end_old = end)
@@ -286,8 +289,8 @@ TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f <- TAIR1
 
 write_delim(TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f, "./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f", delim = "\t", col_names = FALSE)
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to create the file of COs intersecting the final binned gene file
-#bedtools intersect -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO
+#change the directory to "data/Fig2/", then create the file of COs intersecting the final binned gene file using the code below
+system(paste("cd data/Fig2/", "&& bedtools intersect -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO", sep = " "))
 
 #load the file of "TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO", and calculate sum of COs
 TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO_sum <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_RCO", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type", "order", "Chr_CO", "str_CO", "end_CO", "sel_420", "CO_label")) %>%
@@ -329,8 +332,9 @@ gene_type_l_3kb_non_overlapped <- tibble(
   gene_type = c("Flanking TSS", "Flanking TSS", "gene_body", "gene_body", "Flanking TTS", "Flanking TTS")
 )
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to produce state files with bins of genes
-#bedtools intersect -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f -b state_10_raw -wb | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$11}' > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_state
+#run the command line below in the directory "data/Fig2/" to produce state files with bins of genes
+system(paste("cd data/Fig2/", "&& bedtools intersect -a TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_f -b state_10_raw -wb | awk -v OFS=\"\t\" '{print$1, $2, $3, $4, $5, $6, $7, $11}' > TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_state", sep = " "))
+
 gene_sum_state_3kb_non_overlapped <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_bed_non_overlapping_noSV_intact_3kb_total_state", delim = "\t", col_names = c("Chr", "str", "end", "gene_name", "strand", "type", "order", "state")) %>%
   mutate(type = if_else(type == "protein_coding_genes", type, str_sub(type, 1, 3))) %>%
   group_by(type, order, state) %>%
@@ -387,8 +391,10 @@ Fig2_gene_n_bottom <- gene_figure_raw_3kb_non_overlapped +
 
 ######The analysis of Fig 2C######
 #Open the terminal, run the command below in the directory "data/Fig2/" to create the table with all information of protein coding genes and intergenic regions
-#bedtools subtract -a Ara_genome_bed -b TAIR10_protein_coding_genes_bed_sorted | awk '{print$1"\t"$2"\t"$3"\t""IR""\t""no""\t""IR"NR}' > TAIR10_protein_coding_genes_IR_only_temp_bed
-#cat TAIR10_protein_coding_genes_bed_sorted TAIR10_protein_coding_genes_IR_only_temp_bed | bedtools sort > TAIR10_protein_coding_genes_IR_bed 
+system(paste("cd data/Fig2/", "&& bedtools subtract -a Ara_genome_bed -b TAIR10_protein_coding_genes_bed_sorted | awk -v OFS='\t' '{print$1, $2, $3, \"IR\", \"no\", \"IR\"NR}' > TAIR10_protein_coding_genes_IR_only_temp_bed", sep = " "))
+system(paste("cd data/Fig2/", "&& cat TAIR10_protein_coding_genes_bed_sorted TAIR10_protein_coding_genes_IR_only_temp_bed | bedtools sort > TAIR10_protein_coding_genes_IR_bed", sep = " "))
+
+
 #load the table containing protein coding genes and intergenic regions 
 TAIR10_protein_coding_genes_IR_bed <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_bed", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "ID"))
 
@@ -402,11 +408,11 @@ TAIR10_protein_coding_genes_IR_bed_trimmed <- TAIR10_protein_coding_genes_IR_bed
 
 write_delim(TAIR10_protein_coding_genes_IR_bed_trimmed, "./data/Fig2/TAIR10_protein_coding_genes_IR_bed_trimmed", delim = "\t", col_names = FALSE)  
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to subtract SV, then extracted intact IR in syntenic regions
-#bedtools subtract -a TAIR10_protein_coding_genes_IR_bed_trimmed -b SV_raw > TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV
+#run the command below in the directory "data/Fig2/" to subtract SV, then extracted intact IR in syntenic regions
+system(paste("cd data/Fig2/", "&& bedtools subtract -a TAIR10_protein_coding_genes_IR_bed_trimmed -b SV_raw > TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV", sep = " "))
+
 #build up the list of IR event in syntenic regions and syntenic IR size for each IR
 #we also extracted IR with SV to investigate whether "spreading" occurs in SV nearby regions
-
 TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV_sum_IR_size <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_bed_trimmed_no_SV", delim = "\t", col_names = c("Chr", "str", "end", "type", "strand", "ID", "pre_strand", "aft_strand", "IR_type")) %>%
   group_by(ID) %>%
   mutate(syn_IR_size = sum(end-str)) %>%
@@ -468,15 +474,17 @@ TAIR10_protein_coding_genes_IR_100bins_integral <- TAIR10_protein_coding_genes_I
 
 write_delim(TAIR10_protein_coding_genes_IR_100bins_integral, "./data/Fig2/TAIR10_protein_coding_genes_IR_100bins_integral", delim = "\t", col_names = FALSE)
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to get intersected CO info. 
-#bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_100bins_integral_RCO
+#run the command below in the directory "data/Fig2/" to get intersected CO info. 
+system(paste("cd data/Fig2/", "&& bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b R_CO_final_bed -wb > TAIR10_protein_coding_genes_IR_100bins_integral_RCO", sep = " "))
+
 TAIR10_protein_coding_genes_IR_100bins_integral_RCO_sum <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_100bins_integral_RCO", delim = "\t", col_names = c("Chr", "str", "end", "IR_name", "type", "strand", "IR_type", "pre_strand", "aft_strand", "bin", "Chr_CO", "str_CO", "end_CO", "sel", "label")) %>%
   mutate(CO_n_f = (end-str)/(end_CO-str_CO)) %>%
   group_by(IR_name, bin) %>%
   summarise(sum_CO = sum(CO_n_f))
 
-#Open the terminal, run the command below in the directory "data/Fig2/" to get intersected state info. 
-#bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b state_10_raw -wb | awk -v OFS="\t" '{print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $14}' | bedtools sort > TAIR10_protein_coding_genes_IR_100bins_integral_state
+#run the command below in the directory "data/Fig2/" to get intersected state info. 
+system(paste("cd data/Fig2/", "&& bedtools intersect -a TAIR10_protein_coding_genes_IR_100bins_integral -b state_10_raw -wb | awk -v OFS='\t' '{print $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $14}' | bedtools sort > TAIR10_protein_coding_genes_IR_100bins_integral_state", sep = " "))
+
 TAIR10_protein_coding_genes_IR_100bins_integral_state_sum <- read_delim("./data/Fig2/TAIR10_protein_coding_genes_IR_100bins_integral_state", delim = "\t", col_names = c("Chr", "str", "end", "IR_name", "type", "strand", "IR_type", "pre_strand", "aft_strand", "bin", "state")) %>%
   group_by(IR_name, bin, state) %>%
   summarise(sum_state_bp = sum(end-str))
@@ -904,10 +912,9 @@ den_table_list_state <- bind_rows(den_table_list) %>%
   split(.$size_l)
 
 
-#make the intersection between 10 states and the 100-bin bed file, and import 10-state information and calculate the sum of base pairs of 10 states
-#Open the terminal, run the command below in the directory "data/Fig2/"
-#bedtools intersect -a state_10_raw -b ../den_table_100k_bed -wb | bedtools sort | awk '{print$1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$7"\t"$8}' > den_table_100k_state_10_intersect
-#bedtools intersect -a ../den_table_100k_bed -b R_CO_final_bed -wb | awk -v OFS="\t" '{print$1, $2, $3, $4, $6, $7, $8, $9, $10}' > den_table_100k_RCO_raw_bed
+#run the command below in the directory "data/Fig2/" to get the intersection between 10 states and the 100-bin bed file, and import 10-state information and calculate the sum of base pairs of 10 states
+system(paste("cd ./data/Fig2", "&& bedtools intersect -a state_10_raw -b ../den_table_100k_bed -wb | bedtools sort | awk -v OFS='\t' '{print$1, $2, $3, $4, $6, $7, $8}' > den_table_100k_state_10_intersect", sep = " "))
+system(paste("cd ./data/Fig2", "&& bedtools intersect -a ../den_table_100k_bed -b R_CO_final_bed -wb | awk -v OFS='\t' '{print$1, $2, $3, $4, $6, $7, $8, $9, $10}' > den_table_100k_RCO_raw_bed", sep = " "))
 
 #calculate the sum of base pairs of each state in 100-kb bins
 den_table_state_sum_100k <- read_delim(

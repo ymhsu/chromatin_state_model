@@ -1,8 +1,8 @@
 #change the directory "chromatin_state_model" as the working directory
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+#setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #using "p_load" from the package "pacman" to install and load necessary packages
-install.packages("pacman")
+install.packages("pacman", repos = "https://mirror.ibcp.fr/pub/CRAN/")
 library(pacman)
 
 Packages <- c("scales", "tidyverse", "ggrepel", "ggsci", "ggpubr", "doMC", "doParallel", "foreach", "slider", "cowplot", "combinat")
@@ -80,14 +80,19 @@ write_delim)
 #The directories specified in the parenthesis following the feature are the place to store these files.
 
 #TSS/protein-coding genes/TE
-#Open the terminal, run the shell script "genomic_features.sh" in the directory "script/" to create the necessary files of genomic features.
-#These produced files will be located in "data/Fig1/".
+#create the necessary files of genomic features.
+#The files will be located in "data/Fig1/".
+system(paste("cd script/", "&& bash genomic_features.sh", sep = " "))
+
 
 #H3K4me1/H3K4me3/H3K9me2/H3K27me3/ATAC/DNase 
-#Open the terminal, run the shell script "epimark_bedgraph_final.sh" in the directory "script/" to create the necessary files of epigenomic features.
+#create the necessary files of epigenomic features.
 #The bedgraph files for Fig1 and SP Fig1 will be produced in "data/Fig1/epimark_data/".
-#Then, one needs to locate in "script/" to run "Fig1_9features_intersect_14bins_f.sh" to get the bed file of the intersection between features and bins. (SVs intersecting bins or features were included)
-#The intersection between Rowans' intervals is produced by "Fig1_9features_intersect_14bins_f.sh" as well.
+system(paste("cd script/", "&& bash epimark_bedgraph_final.sh", sep = " "))
+
+
+#Then, one needs to locate in "script/" to run "Fig1_9features_intersect_14bins_f.sh" to get the bed file of the intersection between features/Rowans' intervals and bins. (SVs intersecting bins or features were included)
+system(paste("cd script/", "&& bash Fig1_9features_intersect_14bins_f.sh", sep = " "))
 
 #read CO file and calculate recombination rate (based on Rowan's CO intervals)
 paths_den_table_RCO <-

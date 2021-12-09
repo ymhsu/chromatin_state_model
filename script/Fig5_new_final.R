@@ -88,8 +88,9 @@ state_9_total_modified <- read_delim("./data/Fig5/chromatin_state_total_bed", co
 write_delim(state_9_total_modified, "./data/Fig5/state_9_total_modified", delim = "\t", col_names = FALSE)
 
 
-#Open the terminal, run the command below in the directory "./data/Fig4" to procude the decompressed bed file
-#gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw
+#run the command below in the directory "./data/Fig4" to procude the decompressed bed file
+system(paste("cd ./data/Fig4/", "&& gunzip -c Ian_pop_passed_SNP_bed_raw.gz > Ian_pop_passed_SNP_bed_raw", sep = " "))
+
 SNP_tag_Ian <- tibble(
   cross_raw = c(1:5),
   cross = str_c("SNP_Col_", c("Ct", "Ws", "Bur", "Clc", "Ler"))
@@ -102,9 +103,10 @@ Ian_pop_passed_SNP_bed <- read_delim("./data/Fig4/Ian_pop_passed_SNP_bed_raw", c
 
 write_delim(Ian_pop_passed_SNP_bed, "./data/Fig4/Ian_pop_passed_SNP_bed", col_names = FALSE, delim = "\t")
 
-#Open the terminal, run the shell script "Fig5_IR_SNP_bed_file.sh" below in the directory "./script" for generating the modified 10-state segments
-#Then create the 10-state segments with the information of SNP density and IR using different sizes of bins 
+#run the shell script "Fig5_IR_SNP_bed_file.sh" below in the directory "./script" for generating the modified 10-state segments
+system(paste("cd ./script/", "&& bash Fig5_IR_SNP_bed_file.sh", sep = " "))
 
+#Then create the 10-state segments with the information of SNP density and IR using different sizes of bins 
 #Import data (the segment of state data and CO data)
 #State data in tables with different size of bins
 #Every state segment with intersected IR info
