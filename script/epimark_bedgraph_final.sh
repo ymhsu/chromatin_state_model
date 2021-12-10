@@ -42,10 +42,8 @@ echo ${i}
 echo ${i} | sed 's/\.bw//g' > ../data/Fig1/epimark_data/fqin
 cat ../data/Fig1/epimark_data/fqin
 
-#one needs to use the absolute path to run bigWigToBedGraph without activating conda
-#<path_to_your_anaconda_installation_folder>/anaconda3/bin/bigWigToBedGraph
-#In our case, anaconda3 was downloaded in /home/ymhsu0119/
-/home/ymhsu0119/anaconda3/bin/bigWigToBedGraph ../data/Fig1/epimark_data/${i} >(gzip > ../data/Fig1/epimark_data/$(cat ../data/Fig1/epimark_data/fqin).bedgraph.gz)
+#Now we need to use bigWigToBedGraph to transform bw file to bedgraph files
+bigWigToBedGraph ../data/Fig1/epimark_data/${i} >(gzip > ../data/Fig1/epimark_data/$(cat ../data/Fig1/epimark_data/fqin).bedgraph.gz)
 
 rm ../data/Fig1/epimark_data/${i}
 

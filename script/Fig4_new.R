@@ -1,3 +1,4 @@
+#This script is to create Fig 4 and Fig S7
 #change the directory "chromatin_state_model" as the working directory (the link below is an example)
 #setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 

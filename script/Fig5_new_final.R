@@ -1,11 +1,11 @@
-#This script intends to create all the figures and tables related to our final model with 15 parameters.
-#We create Figure 5, Figure S7, Figure S8, Table S3, Table S4, and SP file2 here.
+#This script intends to create all the figures and tables related to our final model with 15 parameters
+#We create Figure 5, Figure S8, Figure S9, Table S4, Table S5, and SP file2 here
 
 #In the full model, we have 10 parameters for each state (10 parameters), 2 parameters of SNP effect and 3 parameters for IR effect.
 #note that IR/SNP effect are the same for each segment of 10 states
 
 #change the directory "chromatin_state_model" as the working directory
-setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
+#setwd("/data/projects/thesis/INRA_project/Ara_TE_task/R_markdown/Model_1st/chromatin_state_model/")
 
 #using "p_load" from the package "pacman" to install and load necessary packages
 install.packages("pacman")

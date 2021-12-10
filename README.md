@@ -3,30 +3,30 @@ All of the analysis were performed under Linux (Ubuntu 18.04.6 LTS).
 
 The shell scripts use bash.
 
-To perform the analyses, one needs to have a number of utilities installed:\
-"R" (we use R Studio version 1.1.463 with R version 3.6.3.)\
-The necessary libraries are included therein\
-"bedtools" (we use version of bedtools v2.26.0, free from https://github.com/arq5x/bedtools2/releases) \
-"bigWigToBedGraph" (free from http://hgdownload.cse.ucsc.edu/admin/exe/)
+To perform the analyses, one needs to have a number of utilities installed:  
+"R" (we use R Studio version 1.1.463 with R version 3.6.3.)  
+The necessary libraries are included therein  
+"bedtools" (we use version of bedtools v2.26.0, free from https://github.com/arq5x/bedtools2/releases)   
+"bigWigToBedGraph" (free from http://hgdownload.cse.ucsc.edu/admin/exe/)  
 
 ## Repository organization
-The files are organized in 3 directories as follows:\
+The files are organized in 3 directories as follows:  
 
 
 ### data directory: 
-contains instructions to get datasets for each figure as well as the CO datasets of the publications Rowan et al. 2020 and Blackwell et al 2020.\
+contains instructions to get datasets for each figure as well as the CO datasets of the publications Rowan et al. 2020 and Blackwell et al 2020.  
 
 
 ### script directory:
-Contains 5 shell scripts used to download raw data and produce intermediate files needed by R scripts.\
-Contains 6 R codes used for performing the analyses published in the paper (each code can be operated independently, just make sure the shell scripts are executable).\ 
-All these scripts contain documentation.\ 
-Note that 5 shell scripts are executable in 6 R codes, so one can execute these shell scripts using R base or R studio.\
-The R scripts also install required dependencies.\
+Contains 5 shell scripts used to download raw data and produce intermediate files needed by R scripts.  
+Contains 6 R codes used for performing the analyses published in the paper (each code can be operated independently, just make sure the shell scripts are executable).  
+All these scripts contain documentation.   
+Note that 5 shell scripts are executable in 6 R codes, so one can execute these shell scripts using R base or R studio.  
+The R scripts also install required dependencies. 
 
 
 ### analysis_output:
-empty initially, when running the scripts the results are written here.\
+empty initially, when running the scripts the results are written here.  
 
 
 ## Cloning the repository

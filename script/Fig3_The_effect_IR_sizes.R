@@ -1,3 +1,4 @@
+#This script is to create Fig3
 #using "p_load" from the package "pacman" to install and load necessary packages
 install.packages("pacman", repos = "https://mirror.ibcp.fr/pub/CRAN/")
 library(pacman)
