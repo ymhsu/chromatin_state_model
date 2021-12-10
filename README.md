@@ -1,5 +1,5 @@
-## Environments and software installation
-All of the analysis were performed under Linux (Ubuntu 18.04.6 LTS).
+## Environment and software installation
+All of the analyses were performed under Linux (Ubuntu 18.04.6 LTS).
 
 The shell scripts use bash.
 
@@ -14,19 +14,19 @@ The files are organized in 3 directories as follows:
 
 
 ### data directory: 
-contains instructions to get datasets for each figure as well as the CO datasets of the publications Rowan et al. 2020 and Blackwell et al 2020.  
+contains names of datasets to be downloaded for each figure as well as the CO datasets of the publications Rowan et al. 2020 and Blackwell et al 2020.  
 
 
 ### script directory:
 Contains 5 shell scripts used to download raw data and produce intermediate files needed by R scripts.  
 Contains 6 R codes used for performing the analyses published in the paper (each code can be operated independently, just make sure the shell scripts are executable).  
 All these scripts contain documentation.   
-Note that 5 shell scripts are executable in 6 R codes, so one can execute these shell scripts using R base or R studio.  
+Note that the R codes execute internally all the required shell scripts.   
 The R scripts also install required dependencies. 
 
 
 ### analysis_output:
-empty initially, when running the scripts the results are written here.  
+The results are written here when running the scripts
 
 
 ## Cloning the repository
